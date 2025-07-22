@@ -1,15 +1,11 @@
+import winreg
+
 import cv2
 import mediapipe as mp
 from typing import Tuple, Optional
 import numpy as np
-import os
-import logging
 from dataclasses import dataclass
-
-# Suppress MediaPipe/TensorFlow warnings
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-logging.getLogger('tensorflow').setLevel(logging.ERROR)
-
+from point import Point
 
 @dataclass
 class TrackerConfig:
@@ -47,9 +43,10 @@ class HeadTracker:
         self.current_translation: Optional[np.ndarray] = None
 
         # Essential landmarks - minimum 6 points required for PnP
+        # Changed chin (152) to upper lip (13) to avoid yawning interference
         self.essential_landmarks = {
             'nose_tip': 1,
-            'chin': 152,
+            'upper_lip': 13,  # Changed from chin (152) - more stable during yawning
             'left_cheek': 234,
             'right_cheek': 454,
             'forehead': 10,
@@ -58,9 +55,10 @@ class HeadTracker:
         }
 
         # 3D face model - 7 points for robust PnP estimation
+        # Updated coordinates for upper lip instead of chin
         self.face_3d_model = np.array([
-            [0.0, -30.0, 5.0],  # Nose tip (reference point)
-            [0.0, -95.6, -12.5],  # Chin
+            [0.0, -30.0, 5.0],  # Nose tip (reference point.py)
+            [0.0, -50.0, -5.0],  # Upper lip - changed from chin [-95.6, -12.5]
             [-65.0, 0.0, -40.0],  # Left cheek
             [65.0, 0.0, -40.0],  # Right cheek
             [0.0, 50.0, -15.0],  # Forehead
@@ -69,29 +67,28 @@ class HeadTracker:
         ], dtype=np.float64)
 
         # MediaPipe indices corresponding to 3D model
-        self.face_landmark_indices = [1, 152, 234, 454, 10, 33, 263]
+        # Changed 152 (chin) to 13 (upper lip)
+        self.face_landmark_indices = [1, 13, 234, 454, 10, 33, 263]
 
         # Camera parameters
         self.camera_matrix: Optional[np.ndarray] = None
         self.dist_coefficients = np.zeros((4, 1))
 
     def setup_camera(self) -> Optional[cv2.VideoCapture]:
-        """Try multiple camera indices and configure optimally"""
-        for camera_id in [0, 1, 2]:
-            try:
-                cap = cv2.VideoCapture(camera_id)
-                if cap.isOpened():
-                    return self._configure_camera(cap)
-                cap.release()
-            except Exception as e:
-                if self.config.debug_mode:
-                    print(f"Camera {camera_id} failed: {e}")
-                continue
+        """Setup camera"""
+        try:
+            cap = cv2.VideoCapture(0)
+            if cap.isOpened():
+                return self.configure_camera(cap)
+            cap.release()
+        except Exception as e:
+            if self.config.debug_mode:
+                print(f"Camera failed: {e}")
 
         print("Error: No camera available!")
         return None
 
-    def _configure_camera(self, cap: cv2.VideoCapture) -> cv2.VideoCapture:
+    def configure_camera(self, cap: cv2.VideoCapture) -> cv2.VideoCapture:
         """Configure camera with optimal settings"""
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.frame_width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.frame_height)
@@ -102,12 +99,9 @@ class HeadTracker:
         actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        focal_length = actual_width
-        center = (actual_width // 2, actual_height // 2)
-
         self.camera_matrix = np.array([
-            [focal_length, 0, center[0]],
-            [0, focal_length, center[1]],
+            [actual_width, 0, actual_width // 2],
+            [0, actual_width, actual_height // 2],
             [0, 0, 1]
         ], dtype=np.float64)
 
@@ -224,12 +218,10 @@ class HeadTracker:
         """Set neutral position for calibration"""
         self.neutral_position = translation_vector.copy()
         self.calibrated = True
-        print("✓ Calibration complete!")
+        print("✓ Calibration complete! (Using upper lip instead of chin for yawning stability)")
 
     def send_to_game(self, x: float, y: float, z: float) -> None:
         """Send data to game - placeholder for IPC implementation"""
-        if self.config.debug_mode:
-            print(f"→ Game: X={x:.3f}m, Y={y:.3f}m, Z={z:.3f}m")
 
     def draw_debug_info(self, frame: np.ndarray, landmarks, offset_x: float, offset_y: float, offset_z: float,
                         distance: float) -> None:
@@ -257,7 +249,8 @@ class HeadTracker:
                 f"Offset Y: {offset_y:.1f}mm",
                 f"Offset Z: {offset_z:.1f}mm",
                 f"Movement: {total_movement:.1f}mm",
-                f"Status: {'STABLE' if total_movement < 100 else 'ACTIVE'}"
+                f"Status: {'STABLE' if total_movement < 100 else 'ACTIVE'}",
+                f"Reference: Upper Lip (yawn-stable)"
             ]
 
             for i, line in enumerate(info_lines):
@@ -275,10 +268,10 @@ class HeadTracker:
         try:
             # 3D axis points (30mm length)
             axis_points_3d = np.array([
-                [0, -30, 5],  # Origin at nose tip (matches our reference point)
-                [30, -30, 5],  # X-axis (red)
-                [0, -60, 5],  # Y-axis (green)
-                [0, -30, 35]  # Z-axis (blue)
+                [0, 0, 0],  # Origin at nose tip (matches our reference point.py)
+                [30, 0, 0],  # X-axis (red)
+                [0, 30, 0],  # Y-axis (green)
+                [0, 0, 30]  # Z-axis (blue)
             ], dtype=np.float64)
 
             # Project to image plane
@@ -302,16 +295,73 @@ class HeadTracker:
             if self.config.debug_mode:
                 print(f"Error drawing axes: {e}")
 
+    def get_monitor_size(self):
+        """
+            Zwraca słownik z wymiarami pierwszego napotkanego monitora:
+            - szerokość i wysokość w mm
+            - przekątna w calach
+            - lub None jeśli nie znaleziono
+            """
+        path = r"SYSTEM\CurrentControlSet\Enum\DISPLAY"
+
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path) as display_key:
+                for i in range(winreg.QueryInfoKey(display_key)[0]):
+                    subkey_name = winreg.EnumKey(display_key, i)
+                    subkey_path = f"{path}\\{subkey_name}"
+
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, subkey_path) as subkey:
+                        for j in range(winreg.QueryInfoKey(subkey)[0]):
+                            monitor_id = winreg.EnumKey(subkey, j)
+                            full_path = f"{subkey_path}\\{monitor_id}\\Device Parameters"
+
+                            try:
+                                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, full_path) as monitor_key:
+                                    edid_raw, _ = winreg.QueryValueEx(monitor_key, "EDID")
+                                    width_mm = edid_raw[21] * 10
+                                    height_mm = edid_raw[22] * 10
+
+                                    return {
+                                        "width": width_mm,
+                                        "height": height_mm
+                                    }
+                            except FileNotFoundError:
+                                continue
+        except Exception as e:
+            print(f"Błąd: {e}")
+
+        return None
+
     def run(self) -> None:
         """Main tracking loop"""
         cap = self.setup_camera()
         if cap is None:
             return
 
+        cv2.namedWindow("test", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("test", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+        monitor_size = self.get_monitor_size()
+        print(monitor_size.get("width"))
+        print(monitor_size.get("height"))
+
+        # 1. Tworzymy nowy obraz (czarne tło, np. 500x500 pikseli)
+        image = np.zeros((500, 500, 3), dtype=np.uint8)
+
+        # 2. Definiujemy punkty trójkąta (x, y)
+        pts = np.array([[250, 100], [100, 400], [400, 400]], np.int32)
+        pts = pts.reshape((-1, 1, 2))  # wymagany format dla cv2.polylines
+
+        # 3. Rysujemy kontur trójkąta
+        cv2.polylines(image, [pts], isClosed=True, color=(0, 255, 0), thickness=3)
+
+        # (opcjonalnie) Wypełnij trójkąt:
+        # cv2.fillPoly(image, [pts], color=(0, 255, 0))
+
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        print("Head Tracker started!")
+        print("Head Tracker started! (Yawn-resistant version)")
         print("Press 'c' to calibrate")
         print("Press 'q' to quit")
         print("Press 'd' to toggle debug mode")
@@ -342,7 +392,26 @@ class HeadTracker:
                                 offset_x, offset_y, offset_z = self.calculate_movement_offset(translation_vector)
 
                                 # Send to game (convert mm to meters)
-                                self.send_to_game(offset_x / 1000, offset_y / 1000, offset_z / 1000)
+                                self.send_to_game(offset_x, offset_y, offset_z)
+                                image = np.zeros((1080, 1920, 3), dtype=np.uint8)
+
+                                for i in range(20):
+                                    for ii in range(20):
+                                        point = Point(np.array([-1000 + i * 100, -400, 2000 + ii * 100]), (0, 200, 0))
+                                        projected_point = point.project(np.array([-offset_x, -offset_y, -offset_z - 500]))
+                                        if projected_point is not None:
+                                            cv2.circle(image, (projected_point[0], projected_point[1]), 4, point.color, -1)
+
+                                for i in range(30):
+                                    points = [Point(np.array([-700, -370 + 30 * i, 3450]), (0, 60, 100)),
+                                              Point(np.array([-670, -370 + 30 * i, 3450]), (0, 60, 100)),
+                                              Point(np.array([-700, -370 + 30 * i, 3480]), (0, 60, 100)),
+                                              Point(np.array([-670, -370 + 30 * i, 3480]), (0, 60, 100))]
+                                    for point in points:
+                                        projected_point = point.project(np.array([-offset_x, -offset_y, -offset_z - 500]))
+                                        if projected_point is not None:
+                                            cv2.circle(image, (projected_point[0], projected_point[1]), 4, point.color, -1)
+
 
                                 # Draw debug info
                                 self.draw_debug_info(frame, facial_landmarks, offset_x, offset_y, offset_z, distance)
@@ -366,12 +435,13 @@ class HeadTracker:
 
                 # Status display
                 if self.config.debug_mode:
-                    status = "CALIBRATED" if self.calibrated else "PRESS 'C' TO CALIBRATE"
+                    status = "CALIBRATED (YAWN-STABLE)" if self.calibrated else "PRESS 'C' TO CALIBRATE"
                     color = (0, 255, 0) if self.calibrated else (0, 255, 255)
                     cv2.putText(frame, status, (10, frame_height - 20),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-                    cv2.imshow("Head Tracker", frame)
+                cv2.imshow("Head Tracker", frame)
+                cv2.imshow("test", image)
 
                 # Handle keyboard input
                 key = cv2.waitKey(1) & 0xFF
@@ -395,7 +465,7 @@ class HeadTracker:
 
 
 def main():
-    """Entry point with configuration examples"""
+    """Entry point.py with configuration examples"""
     # Example: High performance mode
     # config = TrackerConfig(
     #     debug_mode=False,
@@ -413,10 +483,8 @@ def main():
 
     # Default configuration
     config = TrackerConfig()
-
     tracker = HeadTracker(config)
     tracker.run()
-
 
 if __name__ == "__main__":
     main()
