@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 
 class Point:
+    screen_width_mm = 530
+    screen_height_mm = 300
+    screen_pixels_x = 1920
+    screen_pixels_y = 1080
     def __init__(self, position: np.ndarray, color: cv2.typing.Scalar = (100, 100, 100), size: float = 10):
-        self.screen_width_mm = 530
-        self.screen_height_mm = 300
-        self.screen_pixels_x = 1920
-        self.screen_pixels_y = 1080
         self.position = position
         self.color = color
         self.size = size
@@ -29,18 +29,21 @@ class Point:
         projected = observer + t * direction
 
         # POPRAWKA 3: Centrowanie - (0,0) ma być na środku ekranu
-        centered_x = projected[0] + self.screen_width_mm / 2
-        centered_y = -projected[1] + self.screen_height_mm / 2  # odwrócenie Y
+        centered_x = projected[0]
+        centered_y = -projected[1]
 
         # Skalowanie z milimetrów na piksele
         scale_x = self.screen_pixels_x / self.screen_width_mm
         scale_y = self.screen_pixels_y / self.screen_height_mm
 
-        pixel_x = int(centered_x * scale_x)
-        pixel_y = int(centered_y * scale_y)
+        pixel_x = int(centered_x * scale_x) + self.screen_pixels_x // 2
+        pixel_y = int(centered_y * scale_y) + self.screen_pixels_y // 2
+
+        # wielkosc kropki
+        size = max(2, int(self.size * 1000 / np.linalg.norm(direction)))
 
         # POPRAWKA 4: Sprawdź granice ekranu
-        if 0 <= pixel_x < self.screen_pixels_x and 0 <= pixel_y < self.screen_pixels_y:
-            return np.array([pixel_x, pixel_y, self.size])
+        if -size <= pixel_x < self.screen_pixels_x + size and -size <= pixel_y < self.screen_pixels_y + size:
+            return np.array([pixel_x, pixel_y, size])
         else:
             return None

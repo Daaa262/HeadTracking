@@ -1,3 +1,4 @@
+import random
 import winreg
 
 import cv2
@@ -5,6 +6,10 @@ import mediapipe as mp
 from typing import Tuple, Optional
 import numpy as np
 from dataclasses import dataclass
+
+from screeninfo import get_monitors
+
+import point
 from point import Point
 
 @dataclass
@@ -38,15 +43,12 @@ class HeadTracker:
         # Tracking state
         self.previous_translation: Optional[np.ndarray] = None
         self.consecutive_bad_frames: int = 0
-        self.calibrated: bool = False
-        self.neutral_position: Optional[np.ndarray] = None
         self.current_translation: Optional[np.ndarray] = None
 
         # Essential landmarks - minimum 6 points required for PnP
-        # Changed chin (152) to upper lip (13) to avoid yawning interference
         self.essential_landmarks = {
             'nose_tip': 1,
-            'upper_lip': 13,  # Changed from chin (152) - more stable during yawning
+            'upper_lip': 13,
             'left_cheek': 234,
             'right_cheek': 454,
             'forehead': 10,
@@ -55,10 +57,9 @@ class HeadTracker:
         }
 
         # 3D face model - 7 points for robust PnP estimation
-        # Updated coordinates for upper lip instead of chin
         self.face_3d_model = np.array([
-            [0.0, -30.0, 5.0],  # Nose tip (reference point.py)
-            [0.0, -50.0, -5.0],  # Upper lip - changed from chin [-95.6, -12.5]
+            [0.0, -30.0, 5.0],  # Nose tip
+            [0.0, -50.0, -5.0],  # Upper lip
             [-65.0, 0.0, -40.0],  # Left cheek
             [65.0, 0.0, -40.0],  # Right cheek
             [0.0, 50.0, -15.0],  # Forehead
@@ -67,7 +68,6 @@ class HeadTracker:
         ], dtype=np.float64)
 
         # MediaPipe indices corresponding to 3D model
-        # Changed 152 (chin) to 13 (upper lip)
         self.face_landmark_indices = [1, 13, 234, 454, 10, 33, 263]
 
         # Camera parameters
@@ -98,6 +98,11 @@ class HeadTracker:
         # Initialize camera matrix with actual resolution
         actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        Point.screen_pixels_x = get_monitors()[0].width
+        Point.screen_pixels_y = get_monitors()[0].height
+        Point.screen_width_mm = get_monitors()[0].width_mm
+        Point.screen_height_mm = get_monitors()[0].height_mm
 
         self.camera_matrix = np.array([
             [actual_width, 0, actual_width // 2],
@@ -186,16 +191,16 @@ class HeadTracker:
             )
 
             if success:
-                distance = np.linalg.norm(translation_vector)
+                distance = float(np.linalg.norm(translation_vector))
 
                 if not self.is_valid_pose(translation_vector, distance):
                     # Return previous valid pose if available
                     if (self.consecutive_bad_frames >= self.config.max_bad_frames and
                             self.previous_translation is not None):
-                        return None, self.previous_translation, np.linalg.norm(self.previous_translation)
+                        return None, self.previous_translation, float(np.linalg.norm(self.previous_translation))
 
                 smoothed_translation = self.smooth_translation(translation_vector)
-                smoothed_distance = np.linalg.norm(smoothed_translation)
+                smoothed_distance = float(np.linalg.norm(smoothed_translation))
 
                 rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
                 return rotation_matrix, smoothed_translation, smoothed_distance
@@ -205,20 +210,6 @@ class HeadTracker:
                 print(f"PnP calculation error: {e}")
 
         return None, None, 0.0
-
-    def calculate_movement_offset(self, current_translation: np.ndarray) -> Tuple[float, float, float]:
-        """Calculate offset from neutral position"""
-        if self.neutral_position is None:
-            return 0.0, 0.0, 0.0
-
-        offset = current_translation - self.neutral_position
-        return float(offset[0]), float(offset[1]), float(offset[2])
-
-    def calibrate(self, translation_vector: np.ndarray) -> None:
-        """Set neutral position for calibration"""
-        self.neutral_position = translation_vector.copy()
-        self.calibrated = True
-        print("✓ Calibration complete! (Using upper lip instead of chin for yawning stability)")
 
     def send_to_game(self, x: float, y: float, z: float) -> None:
         """Send data to game - placeholder for IPC implementation"""
@@ -236,29 +227,22 @@ class HeadTracker:
             if idx < len(landmarks.landmark):
                 landmark = landmarks.landmark[idx]
                 x, y = int(landmark.x * frame_width), int(landmark.y * frame_height)
-                color = (0, 255, 0) if self.calibrated else (0, 0, 255)
+                color = (0, 255, 0)
                 cv2.circle(frame, (x, y), 3, color, -1)
 
         # Display tracking info
-        if self.calibrated:
-            total_movement = np.sqrt(offset_x ** 2 + offset_y ** 2 + offset_z ** 2)
-
+        if True:
             info_lines = [
                 f"Distance: {distance:.1f}mm",
                 f"Offset X: {offset_x:.1f}mm",
                 f"Offset Y: {offset_y:.1f}mm",
                 f"Offset Z: {offset_z:.1f}mm",
-                f"Movement: {total_movement:.1f}mm",
-                f"Status: {'STABLE' if total_movement < 100 else 'ACTIVE'}",
                 f"Reference: Upper Lip (yawn-stable)"
             ]
 
             for i, line in enumerate(info_lines):
                 cv2.putText(frame, line, (10, 60 + i * 20),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        else:
-            cv2.putText(frame, f"Distance: {distance:.1f}mm", (10, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
     def draw_axes(self, frame: np.ndarray, rotation_matrix: np.ndarray, translation_vector: np.ndarray) -> None:
         """Draw 3D coordinate axes for head orientation"""
@@ -338,8 +322,8 @@ class HeadTracker:
         if cap is None:
             return
 
-        cv2.namedWindow("test", cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty("test", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.namedWindow("kosmos", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("kosmos", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         monitor_size = self.get_monitor_size()
         print(monitor_size.get("width"))
@@ -361,8 +345,58 @@ class HeadTracker:
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        print("Head Tracker started! (Yawn-resistant version)")
-        print("Press 'c' to calibrate")
+        points = []
+        """
+        for i in range(20):
+            for ii in range(20):
+                points.append(Point(np.array([-1000 + i * 100 + random.randint(-20, 20), -400, 2000 + ii * 100 + random.randint(-20, 20)]), (0, 200, 0), 8))
+
+        for i in range(30):
+            points.append(Point(np.array([-700, -370 + 30 * i, 3450]), (0, 60, 100), 20))
+            points.append(Point(np.array([-670, -370 + 30 * i, 3450]), (0, 60, 100), 20))
+            points.append(Point(np.array([-700, -370 + 30 * i, 3480]), (0, 60, 100), 20))
+            points.append(Point(np.array([-670, -370 + 30 * i, 3480]), (0, 60, 100), 20))
+
+        points.append(Point(np.array([-15, -15, -200]), (255, 255, 0), 5))
+        points.append(Point(np.array([15, -15, -200]), (255, 255, 0), 5))
+        points.append(Point(np.array([-15, 15, -200]), (255, 255, 0), 5))
+        points.append(Point(np.array([15, 15, -200]), (255, 255, 0), 5))
+        points.append(Point(np.array([-15, -15, -230]), (255, 255, 0), 5))
+        points.append(Point(np.array([15, -15, -230]), (255, 255, 0), 5))
+        points.append(Point(np.array([-15, 15, -230]), (255, 255, 0), 5))
+        points.append(Point(np.array([15, 15, -230]), (255, 255, 0), 5))
+
+        points.append(Point(np.array([-10, -10, -200]), (255, 100, 0), 5))
+        points.append(Point(np.array([10, -10, -200]), (255, 100, 0), 5))
+        points.append(Point(np.array([-10, 10, -200]), (255, 100, 0), 5))
+        points.append(Point(np.array([10, 10, -200]), (255, 100, 0), 5))
+        points.append(Point(np.array([-10, -10, -220]), (255, 100, 0), 5))
+        points.append(Point(np.array([10, -10, -220]), (255, 100, 0), 5))
+        points.append(Point(np.array([-10, 10, -220]), (255, 100, 0), 5))
+        points.append(Point(np.array([10, 10, -220]), (255, 100, 0), 5))
+        """
+
+        for i in range(1000):
+            color_choice = random.randint(0, 5)
+
+            if color_choice == 0:
+                color = (0, 0, random.randint(200, 255))
+            elif color_choice == 1:
+                color = (0, random.randint(150, 230), random.randint(230, 255))
+            elif color_choice == 2:
+                color = (random.randint(220, 255), 0, 0)
+            elif color_choice == 3:
+                color = (random.randint(220, 255), random.randint(180, 200), 0)
+            else:
+                color = (255, 255, 255)
+
+            points.append(Point(np.array([
+                random.randint(-6 * (1000 - i) - 100, 6 * (1000 - i) + 100),
+                random.randint(-6 * (1000 - i) - 100, 6 * (1000 - i) + 100),
+                9600 - i ** 0.9 * 20
+            ]), color, random.randint(0, int(i ** 1.1) // 50 + 1)))
+
+        print("Head Tracker started!")
         print("Press 'q' to quit")
         print("Press 'd' to toggle debug mode")
 
@@ -387,43 +421,24 @@ class HeadTracker:
                         if translation_vector is not None:
                             self.current_translation = translation_vector
 
-                            if self.calibrated:
-                                # Calculate movement offset
-                                offset_x, offset_y, offset_z = self.calculate_movement_offset(translation_vector)
+                            # Calculate movement offset
+                            offset_x, offset_y, offset_z = translation_vector[0].item(), translation_vector[1].item(), translation_vector[2].item()
 
-                                # Send to game (convert mm to meters)
-                                self.send_to_game(offset_x, offset_y, offset_z)
-                                image = np.zeros((1080, 1920, 3), dtype=np.uint8)
+                            # Send to game (convert mm to meters)
+                            self.send_to_game(offset_x, offset_y, offset_z)
+                            image = np.zeros((Point.screen_pixels_y, Point.screen_pixels_x, 3), dtype=np.uint8)
 
-                                for i in range(20):
-                                    for ii in range(20):
-                                        point = Point(np.array([-1000 + i * 100, -400, 2000 + ii * 100]), (0, 200, 0))
-                                        projected_point = point.project(np.array([-offset_x, -offset_y, -offset_z - 500]))
-                                        if projected_point is not None:
-                                            cv2.circle(image, (projected_point[0], projected_point[1]), 4, point.color, -1)
+                            for point in points:
+                                projected_point = point.project((np.array([-offset_x, -offset_y, -offset_z])))
+                                if projected_point is not None:
+                                    cv2.circle(image, (projected_point[0], projected_point[1]), projected_point[2], point.color, -1)
 
-                                for i in range(30):
-                                    points = [Point(np.array([-700, -370 + 30 * i, 3450]), (0, 60, 100)),
-                                              Point(np.array([-670, -370 + 30 * i, 3450]), (0, 60, 100)),
-                                              Point(np.array([-700, -370 + 30 * i, 3480]), (0, 60, 100)),
-                                              Point(np.array([-670, -370 + 30 * i, 3480]), (0, 60, 100))]
-                                    for point in points:
-                                        projected_point = point.project(np.array([-offset_x, -offset_y, -offset_z - 500]))
-                                        if projected_point is not None:
-                                            cv2.circle(image, (projected_point[0], projected_point[1]), 4, point.color, -1)
+                            # Draw debug info
+                            self.draw_debug_info(frame, facial_landmarks, offset_x, offset_y, offset_z, distance)
 
-
-                                # Draw debug info
-                                self.draw_debug_info(frame, facial_landmarks, offset_x, offset_y, offset_z, distance)
-
-                                # Draw 3D axes if rotation available
-                                if rotation_matrix is not None and self.config.debug_mode:
-                                    self.draw_axes(frame, rotation_matrix, translation_vector)
-                            else:
-                                # Show distance before calibration
-                                if self.config.debug_mode:
-                                    cv2.putText(frame, f"Distance: {distance:.1f}mm", (10, 60),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+                            # Draw 3D axes if rotation available
+                            if rotation_matrix is not None and self.config.debug_mode:
+                                self.draw_axes(frame, rotation_matrix, translation_vector)
                         else:
                             if self.config.debug_mode:
                                 cv2.putText(frame, "Tracking unstable", (10, 60),
@@ -433,26 +448,18 @@ class HeadTracker:
                         cv2.putText(frame, "No face detected", (10, 30),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-                # Status display
                 if self.config.debug_mode:
-                    status = "CALIBRATED (YAWN-STABLE)" if self.calibrated else "PRESS 'C' TO CALIBRATE"
-                    color = (0, 255, 0) if self.calibrated else (0, 255, 255)
-                    cv2.putText(frame, status, (10, frame_height - 20),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-
-                cv2.imshow("Head Tracker", frame)
-                cv2.imshow("test", image)
+                    cv2.imshow("debug", frame)
+                cv2.imshow("kosmos", image)
 
                 # Handle keyboard input
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord('q'):
                     break
-                elif key == ord('c') and self.current_translation is not None:
-                    self.calibrate(self.current_translation)
                 elif key == ord('d'):
                     self.config.debug_mode = not self.config.debug_mode
                     if not self.config.debug_mode:
-                        cv2.destroyAllWindows()
+                        cv2.destroyWindow("debug")
                     print(f"Debug mode: {'ON' if self.config.debug_mode else 'OFF'}")
 
         except KeyboardInterrupt:
