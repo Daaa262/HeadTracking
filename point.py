@@ -6,6 +6,10 @@ class Point:
     screen_height_mm = 300
     screen_pixels_x = 1920
     screen_pixels_y = 1080
+
+    scale_x = screen_pixels_x / screen_width_mm
+    scale_y = screen_pixels_y / screen_height_mm
+
     def __init__(self, position: np.ndarray, color: cv2.typing.Scalar = (100, 100, 100), size: float = 10):
         self.position = position
         self.color = color
@@ -24,11 +28,9 @@ class Point:
         centered_x = projected[0]
         centered_y = -projected[1]
 
-        scale_x = self.screen_pixels_x / self.screen_width_mm
-        scale_y = self.screen_pixels_y / self.screen_height_mm
 
-        pixel_x = int(centered_x * scale_x) + self.screen_pixels_x // 2
-        pixel_y = int(centered_y * scale_y) + self.screen_pixels_y // 2
+        pixel_x = int(centered_x * self.scale_x) + self.screen_pixels_x // 2
+        pixel_y = int(centered_y * self.scale_y) + self.screen_pixels_y // 2
 
         size = max(2, int(self.size * 1000 / np.linalg.norm(direction)))
 

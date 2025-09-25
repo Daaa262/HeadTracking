@@ -3,15 +3,16 @@ import winreg
 import cv2
 import mediapipe as mp
 import numpy as np
-import os
 from typing import Tuple, Optional
 from dataclasses import dataclass
+
+from numpy.f2py.crackfortran import previous_context
 from screeninfo import get_monitors
 from point import Point
 
 @dataclass
 class TrackerConfig:
-    smoothing_factor: float = 0.4
+    smoothing_factor: float = 0.04
     max_jump_threshold: float = 150.0
     min_detection_confidence: float = 0.7
     min_tracking_confidence: float = 0.5
@@ -158,8 +159,11 @@ class HeadTracker:
         if self.previous_translation is None:
             self.previous_translation = new_translation.copy()
             return new_translation
-        alpha = self.config.smoothing_factor
+
+        distance = np.linalg.norm(new_translation - self.previous_translation)
+        alpha = 1 - np.exp(-self.config.smoothing_factor * distance)
         smoothed = alpha * new_translation + (1 - alpha) * self.previous_translation
+
         self.previous_translation = smoothed.copy()
         return smoothed
 
@@ -281,8 +285,6 @@ class HeadTracker:
         print(monitor_size.get("width"))
         print(monitor_size.get("height"))
 
-        image = np.zeros((500, 500, 3), dtype=np.uint8)
-
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
@@ -313,15 +315,22 @@ class HeadTracker:
 
         position = np.array([0, 0, 0])
 
+
         try:
+            image = np.zeros((Point.screen_pixels_y, Point.screen_pixels_x, 3), dtype=np.uint8)
+
             while cap.isOpened():
+                image.fill(0)
+
                 ret, frame = cap.read()
                 if not ret:
                     print("Cannot read frame from camera")
                     break
 
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                rgb_frame.flags.writeable = False
                 results = self.face_mesh.process(rgb_frame)
+                rgb_frame.flags.writeable = True
 
                 if results.multi_face_landmarks:
                     for facial_landmarks in results.multi_face_landmarks:
@@ -334,8 +343,6 @@ class HeadTracker:
                             self.current_translation = translation_vector
 
                             offset_x, offset_y, offset_z = translation_vector[0].item(), translation_vector[1].item(), translation_vector[2].item()
-
-                            image = np.zeros((Point.screen_pixels_y, Point.screen_pixels_x, 3), dtype=np.uint8)
 
                             for point in points:
                                 projected_point = point.project(np.array([-offset_x, -offset_y, -offset_z]), position)
@@ -363,19 +370,15 @@ class HeadTracker:
                 if key == ord('q'):
                     break
                 elif key == ord('d'):
-                    position[0] += 5
-                elif key == ord('a'):
-                    position[0] -= 5
+                    self.config.debug_mode = not self.config.debug_mode
+                """
                 elif key == ord('w'):
-                    position[2] += 5
-                elif key == ord('s'):
-                    position[2] -= 5
-                elif key == ord('1'):
                     self.config.smoothing_factor *= 1.1
                     print(self.config.smoothing_factor)
-                elif key == ord('2'):
+                elif key == ord('s'):
                     self.config.smoothing_factor /= 1.1
                     print(self.config.smoothing_factor)
+                """
 
         except KeyboardInterrupt:
             print("\nInterrupted by user")
@@ -387,6 +390,11 @@ class HeadTracker:
 
 
 def main():
+    import os
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Use first GPU only
+    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'  # Dynamic GPU memory
+
     config = TrackerConfig()
     tracker = HeadTracker(config)
     tracker.run()
