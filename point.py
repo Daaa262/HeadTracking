@@ -15,8 +15,8 @@ class Point:
         self.color = color
         self.size = size
 
-    def project(self, observer: np.ndarray, position: np.ndarray) -> np.ndarray | None:
-        direction = self.position - observer - position
+    def project(self, observer: np.ndarray) -> np.ndarray | None:
+        direction = self.position - observer
 
         if direction[2] <= 0:
             return None
@@ -27,7 +27,6 @@ class Point:
 
         centered_x = projected[0]
         centered_y = -projected[1]
-
 
         pixel_x = int(centered_x * self.scale_x) + self.screen_pixels_x // 2
         pixel_y = int(centered_y * self.scale_y) + self.screen_pixels_y // 2
