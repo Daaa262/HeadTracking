@@ -13,9 +13,12 @@ class Config:
         height_mm = get_monitors()[0].height_mm
 
     class Camera:
+        position_relative_to_monitor_center_x_mm = 0
+        position_relative_to_monitor_center_y_mm = get_monitors()[0].height_mm / 2
+
         width = 1920
         height = 1080
-        fps = 60
+        fps = 30
         buffer_size = 1
 
         diagonal_fov_deg = 78.0
@@ -69,12 +72,13 @@ class Config:
 
         PNPMethod = cv2.SOLVEPNP_ITERATIVE
 
-    class SmoothingFilter:
-        mode = 0
-        factor = 0.0001
+    class Other:
+        smoothingFactor = 0.001
+        frustumNear = 0.5
+        frustumFar = 1000.0
 
     class ResultSending:
-        mode = 0,
+        on = 1,
         HOST = "127.0.0.1"
         PORT = 9999
 

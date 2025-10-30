@@ -1,6 +1,5 @@
 from config import Config
 
-import pickle
 import cv2
 import numpy
 import time
