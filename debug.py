@@ -7,7 +7,13 @@ import time
 from multiprocessing.shared_memory import SharedMemory
 from point import Point
 
-def run(shm_viewpoint_name):
+def run(shm_dynamic_config_name, shm_viewpoint_name):
+    shm_dynamic_config = SharedMemory(name=shm_dynamic_config_name)
+    shared_dynamic_config = numpy.ndarray(
+        shape=(1,),
+        dtype=numpy.dtype(Config.Debug.dynamic_fields),
+        buffer=shm_dynamic_config.buf)
+
     shm_viewpoint = SharedMemory(name=shm_viewpoint_name)
     shared_viewpoint = numpy.ndarray(
         shape=(3,),
@@ -39,7 +45,7 @@ def run(shm_viewpoint_name):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         cv2.putText(image, f"Z: {shared_viewpoint[2]:.2f}mm", (10, 90),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        cv2.putText(image, f"Smoothing Factor: {Config.Other.smoothingFactor:.6f}", (10, 120),
+        cv2.putText(image, f"Smoothing Factor: {shared_dynamic_config["smoothing_factor"][0]:.6f}", (10, 120),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
         for point in points:
@@ -48,7 +54,11 @@ def run(shm_viewpoint_name):
                 cv2.circle(image, (projected_point[0], projected_point[1]), projected_point[2], point.color, -1)
 
         cv2.imshow("debug", image)
-        cv2.waitKey(1)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('1'):
+            shared_dynamic_config["smoothing_factor"][0] /= 2
+        if key == ord('2'):
+            shared_dynamic_config["smoothing_factor"][0] *= 2
 
         x += 1
         now = time.time()

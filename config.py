@@ -84,3 +84,7 @@ class Config:
 
     class Debug:
         mode = 0
+        dynamic_fields = [
+            ("smoothing_factor", numpy.float64),
+            ("debug_mode", numpy.int32)
+        ]

@@ -7,7 +7,13 @@ import time
 import socket
 from multiprocessing.shared_memory import SharedMemory
 
-def run(shm_landmarks_name, shm_viewpoint_name):
+def run(shm_dynamic_config_name, shm_landmarks_name, shm_viewpoint_name):
+    shm_dynamic_config = SharedMemory(name=shm_dynamic_config_name)
+    shared_dynamic_config = numpy.ndarray(
+        shape=(1,),
+        dtype=numpy.dtype(Config.Debug.dynamic_fields),
+        buffer=shm_dynamic_config.buf)
+
     shm_landmarks = SharedMemory(name=shm_landmarks_name)
     shared_landmarks = numpy.ndarray(
         shape=(7, 2),
@@ -36,7 +42,7 @@ def run(shm_landmarks_name, shm_viewpoint_name):
             live_viewpoint[2] = -live_viewpoint[2]
 
         distance = numpy.linalg.norm(live_viewpoint - shared_viewpoint)
-        alpha = (1 - numpy.exp(-Config.Other.smoothingFactor * distance))
+        alpha = (1 - numpy.exp(-shared_dynamic_config["smoothing_factor"][0] * distance))
         shared_viewpoint[:] = alpha * live_viewpoint + (1 - alpha) * shared_viewpoint
 
         left = (shared_viewpoint[0] - Config.Screen.width_mm / 2) * Config.Other.frustumNear / -shared_viewpoint[2]
