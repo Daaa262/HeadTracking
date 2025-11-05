@@ -4,12 +4,12 @@ import numpy
 import time
 from multiprocessing.shared_memory import SharedMemory
 
-def run(shm_dynamic_config_name, shm_frame_name, shm_landmarks_name):
-    shm_dynamic_config = SharedMemory(name=shm_dynamic_config_name)
-    shared_dynamic_config = numpy.ndarray(
+def run(shm_dynamic_data_name, shm_frame_name, shm_landmarks_name):
+    shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
+    shared_dynamic_data = numpy.ndarray(
         shape=(1,),
         dtype=numpy.dtype(Config.Debug.dynamic_fields),
-        buffer=shm_dynamic_config.buf)
+        buffer=shm_dynamic_data.buf)
 
     shm_frame = SharedMemory(name=shm_frame_name)
     shared_frame = numpy.ndarray(
@@ -27,7 +27,7 @@ def run(shm_dynamic_config_name, shm_frame_name, shm_landmarks_name):
 
     x = 0
     last_time = time.time()
-    while True:
+    while shared_dynamic_data['running_flag'][0]:
         shared_frame.flags.writeable = False
         mesh = Config.FaceMesh.face_mesh.process(shared_frame)
         shared_frame.flags.writeable = True
@@ -38,10 +38,9 @@ def run(shm_dynamic_config_name, shm_frame_name, shm_landmarks_name):
                 shared_landmarks[i, 0] = landmarks[index].x * Config.Camera.width
                 shared_landmarks[i, 1] = landmarks[index].y * Config.Camera.height
 
-        if shared_dynamic_config["debug_mode"][0] & 2:
-            x += 1
-            now = time.time()
-            if now - last_time >= 1:
-                print(f"[face_mesh] FPS: {x}")
-                x = 0
-                last_time = now
+        x += 1
+        now = time.time()
+        if now - last_time >= 1:
+            shared_dynamic_data["face_mesh_fps"][0] = x
+            x = 0
+            last_time = now

@@ -87,5 +87,8 @@ class Config:
         on = True
         dynamic_fields = [
             ("smoothing_factor", numpy.float64),
-            ("debug_mode", numpy.int32)
+            ("running_flag", numpy.int32),
+            ("camera_fps", numpy.int32),
+            ("face_mesh_fps", numpy.int32),
+            ("viewpoint_fps", numpy.int32)
         ]

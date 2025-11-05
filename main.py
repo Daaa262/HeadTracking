@@ -10,12 +10,12 @@ from viewpoint import run as viewpoint_run
 from debug import run as debug_run
 
 if __name__ == "__main__":
-    dynamic_config = numpy.zeros(1, dtype=numpy.dtype(Config.Debug.dynamic_fields))
-    dynamic_config["smoothing_factor"] = Config.Other.smoothingFactor
-    dynamic_config["debug_mode"] = 0
-    shm_dynamic_config = SharedMemory(create=True, size=dynamic_config.nbytes)
-    shared_dynamic_config = numpy.ndarray(1, dtype=dynamic_config.dtype, buffer=shm_dynamic_config.buf)
-    shared_dynamic_config[:] = dynamic_config
+    dynamic_data = numpy.zeros(1, dtype=numpy.dtype(Config.Debug.dynamic_fields))
+    dynamic_data["smoothing_factor"] = Config.Other.smoothingFactor
+    dynamic_data["running_flag"] = 1
+    shm_dynamic_config = SharedMemory(create=True, size=dynamic_data.nbytes)
+    shared_dynamic_config = numpy.ndarray(1, dtype=dynamic_data.dtype, buffer=shm_dynamic_config.buf)
+    shared_dynamic_config[:] = dynamic_data
 
     shm_frame = SharedMemory(create=True, size=Config.Camera.width * Config.Camera.height * 3)
     shm_landmarks = SharedMemory(create=True, size=56)

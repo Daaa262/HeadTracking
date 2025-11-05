@@ -49,19 +49,21 @@ def draw_debug_text():
 
     # Wyświetl tekst
     draw_text(10, Config.Screen.height - 20, f"Position:")
-    draw_text(10, Config.Screen.height - 40, f"  x:   {shared_viewpoint[0]:8.3f}")
-    draw_text(10, Config.Screen.height - 60, f"  y:  {shared_viewpoint[1]:8.3f}")
-    draw_text(10, Config.Screen.height - 80, f"  z:  {shared_viewpoint[2]:8.3f}")
+    draw_text(10, Config.Screen.height - 40, f"  x:                {shared_viewpoint[0]:8.3f}")
+    draw_text(10, Config.Screen.height - 60, f"  y:                {shared_viewpoint[1]:8.3f}")
+    draw_text(10, Config.Screen.height - 80, f"  z:                {shared_viewpoint[2]:8.3f}")
     draw_text(10, Config.Screen.height - 100, f"Frustum:")
-    draw_text(10, Config.Screen.height - 120, f"  left:   {shared_viewpoint[3]:8.3f}")
-    draw_text(10, Config.Screen.height - 140, f"  right:  {shared_viewpoint[4]:8.3f}")
-    draw_text(10, Config.Screen.height - 160, f"  bottom: {shared_viewpoint[5]:8.3f}")
-    draw_text(10, Config.Screen.height - 180, f"  top:    {shared_viewpoint[6]:8.3f}")
-    draw_text(10, Config.Screen.height - 200, f"  near:   {shared_viewpoint[7]:8.3f}")
-    draw_text(10, Config.Screen.height - 220, f"  far:    {shared_viewpoint[8]:8.3f}")
-    draw_text(10, Config.Screen.height - 240, f"Dynamic Config:")
-    draw_text(10, Config.Screen.height - 260, f"  smoothing_factor:    {shared_dynamic_config['smoothing_factor'][0]:8.6f}")
-    draw_text(10, Config.Screen.height - 280, f"  debug_mode:    {shared_dynamic_config['debug_mode'][0]:8.6f}")
+    draw_text(10, Config.Screen.height - 120, f"  left:            {shared_viewpoint[3]:8.3f}")
+    draw_text(10, Config.Screen.height - 140, f"  right:           {shared_viewpoint[4]:8.3f}")
+    draw_text(10, Config.Screen.height - 160, f"  bottom:          {shared_viewpoint[5]:8.3f}")
+    draw_text(10, Config.Screen.height - 180, f"  top:             {shared_viewpoint[6]:8.3f}")
+    draw_text(10, Config.Screen.height - 200, f"  near:            {shared_viewpoint[7]:8.3f}")
+    draw_text(10, Config.Screen.height - 220, f"  far:             {shared_viewpoint[8]:8.3f}")
+    draw_text(10, Config.Screen.height - 240, f"Dynamic Data:")
+    draw_text(10, Config.Screen.height - 260, f"  smoothing_factor:{shared_dynamic_data['smoothing_factor'][0]:8.6f}")
+    draw_text(10, Config.Screen.height - 280, f"  camera_fps:      {shared_dynamic_data['camera_fps'][0]}")
+    draw_text(10, Config.Screen.height - 300, f"  face_mesh_fps:   {shared_dynamic_data['face_mesh_fps'][0]}")
+    draw_text(10, Config.Screen.height - 320, f"  viewpoint_fps:   {shared_dynamic_data['viewpoint_fps'][0]}")
 
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_LIGHTING)
@@ -72,16 +74,15 @@ def draw_debug_text():
 
 def draw_shapes():
     glPushMatrix()
+    glTranslatef(0.0, 0.2, 0.1)
     glRotatef(alpha, 0.0, 1.0, 0.0)
 
-    # sześcian
     glPushMatrix()
     glTranslatef(-0.25, 0.0, 0.0)
     glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.9, 0.3, 0.3, 1.0])
     glutSolidCube(0.12)
     glPopMatrix()
 
-    # kula
     glPushMatrix()
     glTranslatef(0.0, 0.05, 0.0)
     glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
@@ -89,7 +90,6 @@ def draw_shapes():
     glutSolidSphere(0.08, 256, 256)
     glPopMatrix()
 
-    # stożek
     glPushMatrix()
     glTranslatef(0.25, -0.03, 0.0)
     glRotatef(-90, 1, 0, 0)
@@ -97,7 +97,6 @@ def draw_shapes():
     glutSolidCone(0.06, 0.15, 32, 32)
     glPopMatrix()
 
-    # torus
     glPushMatrix()
     glTranslatef(0.0, -0.05, 0.0)
     glRotatef(90, 1, 0, 0)
@@ -137,15 +136,14 @@ def display():
     pass
 
 def keyboard(key, x, y):
-    global shared_dynamic_config
+    global shared_dynamic_data
     if key == b'1':
-        shared_dynamic_config['smoothing_factor'][0] /= 2
+        shared_dynamic_data['smoothing_factor'][0] /= 2
     elif key == b'2':
-        shared_dynamic_config['smoothing_factor'][0] *= 2
-    elif key == b'd':
-        shared_dynamic_config['debug_mode'][0] = (shared_dynamic_config['debug_mode'][0] + 1) % 4
-    elif key == b'\x1b':  # ESC
-        exit(0)
+        shared_dynamic_data['smoothing_factor'][0] *= 2
+    elif key == b'q':
+        shared_dynamic_data['running_flag'][0] = 0
+        glutLeaveMainLoop()
 
 def init():
     glutInit()
@@ -174,13 +172,13 @@ def init():
 
     glutMainLoop()
 
-def run(shm_dynamic_config_name, shm_viewpoint_name):
-    shm_dynamic_config = SharedMemory(name=shm_dynamic_config_name)
-    global shared_dynamic_config
-    shared_dynamic_config = numpy.ndarray(
+def run(shm_dynamic_data_name, shm_viewpoint_name):
+    shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
+    global shared_dynamic_data
+    shared_dynamic_data = numpy.ndarray(
         shape=(1,),
         dtype=numpy.dtype(Config.Debug.dynamic_fields),
-        buffer=shm_dynamic_config.buf)
+        buffer=shm_dynamic_data.buf)
 
     shm_viewpoint = SharedMemory(name=shm_viewpoint_name)
     global shared_viewpoint
