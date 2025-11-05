@@ -15,6 +15,7 @@ class Config:
     class Camera:
         position_relative_to_monitor_center_x_mm = 0
         position_relative_to_monitor_center_y_mm = get_monitors()[0].height_mm / 2
+        position_relative_to_monitor_center_z_mm = 0
 
         width = 1920
         height = 1080
@@ -60,7 +61,7 @@ class Config:
         }
 
     class FaceModel:
-        model = numpy.array([
+        model_mm = numpy.array([
             [0.0, -30.0, 5.0],
             [0.0, -50.0, -5.0],
             [-65.0, 0.0, -40.0],
@@ -74,16 +75,16 @@ class Config:
 
     class Other:
         smoothingFactor = 0.001
-        frustumNear = 0.5
+        frustumNear = 0.05
         frustumFar = 1000.0
 
     class ResultSending:
-        on = 1,
+        on = 1
         HOST = "127.0.0.1"
         PORT = 9999
 
     class Debug:
-        mode = 0
+        on = True
         dynamic_fields = [
             ("smoothing_factor", numpy.float64),
             ("debug_mode", numpy.int32)

@@ -4,7 +4,13 @@ import numpy
 import time
 from multiprocessing.shared_memory import SharedMemory
 
-def run(shm_frame_name, shm_landmarks_name):
+def run(shm_dynamic_config_name, shm_frame_name, shm_landmarks_name):
+    shm_dynamic_config = SharedMemory(name=shm_dynamic_config_name)
+    shared_dynamic_config = numpy.ndarray(
+        shape=(1,),
+        dtype=numpy.dtype(Config.Debug.dynamic_fields),
+        buffer=shm_dynamic_config.buf)
+
     shm_frame = SharedMemory(name=shm_frame_name)
     shared_frame = numpy.ndarray(
         shape=(Config.Camera.height, Config.Camera.width, 3),
@@ -32,9 +38,10 @@ def run(shm_frame_name, shm_landmarks_name):
                 shared_landmarks[i, 0] = landmarks[index].x * Config.Camera.width
                 shared_landmarks[i, 1] = landmarks[index].y * Config.Camera.height
 
-        x += 1
-        now = time.time()
-        if now - last_time >= 1:
-            print(f"[face_mesh] FPS: {x}")
-            x = 0
-            last_time = now
+        if shared_dynamic_config["debug_mode"][0] & 2:
+            x += 1
+            now = time.time()
+            if now - last_time >= 1:
+                print(f"[face_mesh] FPS: {x}")
+                x = 0
+                last_time = now
