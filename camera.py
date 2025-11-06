@@ -30,6 +30,13 @@ def run(shm_dynamic_data_name, shm_frame_name):
     last_time = time.time()
     try:
         while shared_dynamic_data['running_flag'][0]:
+            x += 1
+            now = time.time()
+            if now - last_time >= 1:
+                shared_dynamic_data["camera_fps"][0] = x
+                x = 0
+                last_time = now
+
             ret, frame = cap.read()
 
             if not ret or frame is None:
@@ -38,13 +45,7 @@ def run(shm_dynamic_data_name, shm_frame_name):
 
             shared_frame[:] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            x += 1
-            now = time.time()
-            if now - last_time >= 1:
-                shared_dynamic_data["camera_fps"][0] = x
-                x = 0
-                last_time = now
     finally:
         cap.release()
-        shm_frame.close()
         shm_dynamic_data.close()
+        shm_frame.close()

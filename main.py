@@ -13,19 +13,19 @@ if __name__ == "__main__":
     dynamic_data = numpy.zeros(1, dtype=numpy.dtype(Config.Debug.dynamic_fields))
     dynamic_data["smoothing_factor"] = Config.Other.smoothingFactor
     dynamic_data["running_flag"] = 1
-    shm_dynamic_config = SharedMemory(create=True, size=dynamic_data.nbytes)
-    shared_dynamic_config = numpy.ndarray(1, dtype=dynamic_data.dtype, buffer=shm_dynamic_config.buf)
-    shared_dynamic_config[:] = dynamic_data
+    shm_dynamic_data = SharedMemory(create=True, size=dynamic_data.nbytes)
+    shared_dynamic_data = numpy.ndarray(1, dtype=dynamic_data.dtype, buffer=shm_dynamic_data.buf)
+    shared_dynamic_data[:] = dynamic_data
 
     shm_frame = SharedMemory(create=True, size=Config.Camera.width * Config.Camera.height * 3)
     shm_landmarks = SharedMemory(create=True, size=56)
     shm_viewpoint = SharedMemory(create=True, size=36)
 
-    camera = Process(target = camera_run, args=(shm_dynamic_config.name, shm_frame.name,))
-    face_mesh = Process(target=face_mesh_run, args=(shm_dynamic_config.name, shm_frame.name, shm_landmarks.name))
-    viewpoint = Process(target=viewpoint_run, args=(shm_dynamic_config.name, shm_landmarks.name, shm_viewpoint.name))
+    camera = Process(target = camera_run, args=(shm_dynamic_data.name, shm_frame.name,))
+    face_mesh = Process(target=face_mesh_run, args=(shm_dynamic_data.name, shm_frame.name, shm_landmarks.name))
+    viewpoint = Process(target=viewpoint_run, args=(shm_dynamic_data.name, shm_landmarks.name, shm_viewpoint.name))
     if Config.Debug.on:
-        debug = Process(target=debug_run, args=(shm_dynamic_config.name, shm_viewpoint.name,))
+        debug = Process(target=debug_run, args=(shm_dynamic_data.name, shm_viewpoint.name,))
 
     try:
         camera.start()
@@ -41,8 +41,8 @@ if __name__ == "__main__":
             debug.join()
 
     finally:
-        shm_dynamic_config.close()
-        shm_dynamic_config.unlink()
+        shm_dynamic_data.close()
+        shm_dynamic_data.unlink()
         shm_frame.close()
         shm_frame.unlink()
         shm_landmarks.close()

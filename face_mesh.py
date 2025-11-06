@@ -25,22 +25,28 @@ def run(shm_dynamic_data_name, shm_frame_name, shm_landmarks_name):
         buffer=shm_landmarks.buf
     )
 
-    x = 0
-    last_time = time.time()
-    while shared_dynamic_data['running_flag'][0]:
-        shared_frame.flags.writeable = False
-        mesh = Config.FaceMesh.face_mesh.process(shared_frame)
-        shared_frame.flags.writeable = True
+    try:
+        x = 0
+        last_time = time.time()
+        while shared_dynamic_data['running_flag'][0]:
+            x += 1
+            now = time.time()
+            if now - last_time >= 1:
+                shared_dynamic_data["face_mesh_fps"][0] = x
+                x = 0
+                last_time = now
 
-        if mesh.multi_face_landmarks:
-            landmarks = mesh.multi_face_landmarks[0].landmark
-            for i, index in enumerate(Config.FaceMesh.landmarks.values()):
-                shared_landmarks[i, 0] = landmarks[index].x * Config.Camera.width
-                shared_landmarks[i, 1] = landmarks[index].y * Config.Camera.height
+            shared_frame.flags.writeable = False
+            mesh = Config.FaceMesh.face_mesh.process(shared_frame)
+            shared_frame.flags.writeable = True
 
-        x += 1
-        now = time.time()
-        if now - last_time >= 1:
-            shared_dynamic_data["face_mesh_fps"][0] = x
-            x = 0
-            last_time = now
+            if mesh.multi_face_landmarks:
+                landmarks = mesh.multi_face_landmarks[0].landmark
+                for i, index in enumerate(Config.FaceMesh.landmarks.values()):
+                    shared_landmarks[i, 0] = landmarks[index].x * Config.Camera.width
+                    shared_landmarks[i, 1] = landmarks[index].y * Config.Camera.height
+
+    finally:
+        shm_dynamic_data.close()
+        shm_frame.close()
+        shm_landmarks.close()

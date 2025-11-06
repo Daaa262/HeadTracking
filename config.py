@@ -73,11 +73,6 @@ class Config:
 
         PNPMethod = cv2.SOLVEPNP_ITERATIVE
 
-    class Other:
-        smoothingFactor = 0.001
-        frustumNear = 0.05
-        frustumFar = 1000.0
-
     class ResultSending:
         on = 1
         HOST = "127.0.0.1"
@@ -92,3 +87,8 @@ class Config:
             ("face_mesh_fps", numpy.int32),
             ("viewpoint_fps", numpy.int32)
         ]
+
+    class Other:
+        smoothingFactor = 0.001
+        frustumNear = 0.05
+        frustumFar = 1000.0
