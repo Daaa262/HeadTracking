@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     shm_frame = SharedMemory(create=True, size=Config.Camera.width * Config.Camera.height * 3)
     shm_landmarks = SharedMemory(create=True, size=56)
-    shm_viewpoint = SharedMemory(create=True, size=36)
+    shm_viewpoint = SharedMemory(create=True, size=12)
 
     camera = Process(target = camera_run, args=(shm_dynamic_data.name, shm_frame.name,))
     face_mesh = Process(target=face_mesh_run, args=(shm_dynamic_data.name, shm_frame.name, shm_landmarks.name))

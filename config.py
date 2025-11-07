@@ -14,7 +14,7 @@ class Config:
 
     class Camera:
         position_relative_to_monitor_center_x_mm = 0
-        position_relative_to_monitor_center_y_mm = get_monitors()[0].height_mm / 2
+        position_relative_to_monitor_center_y_mm = 0#get_monitors()[0].height_mm / 2
         position_relative_to_monitor_center_z_mm = 0
 
         width = 1920
@@ -90,5 +90,6 @@ class Config:
 
     class Other:
         smoothingFactor = 0.001
+        smoothingFrequency = 0.005
         frustumNear = 1.0
         frustumFar = 10000.0
