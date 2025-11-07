@@ -13,15 +13,52 @@ def update_projection():
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
 
-    glFrustum(*shared_viewpoint[3:9])
+    camera_position = numpy.array(shared_viewpoint[:3], dtype=float)
 
-def update_camera_position():
+    forward = - camera_position
+    forward /= numpy.linalg.norm(forward)
+
+    world_up = numpy.array([0.0, 1.0, 0.], dtype=float)
+    world_up /= numpy.linalg.norm(world_up)
+
+    right = numpy.cross(forward, world_up)
+    right /= numpy.linalg.norm(right)
+    up = numpy.cross(right, forward)
+    up /= numpy.linalg.norm(up)
+
+    hw, hh = Config.Screen.width_mm / 2.0, Config.Screen.height_mm / 2.0
+    corners = [
+        right * hw + up * hh,
+        -right * hw + up * hh,
+        right * hw - up * hh,
+        -right * hw - up * hh
+    ]
+
+    xs, ys = [], []
+    for p in corners:
+        v = p - camera_position
+        xs.append(numpy.dot(right, v))
+        ys.append(numpy.dot(up, v))
+
+    monitor_distance = -numpy.dot(forward, camera_position)
+
+    near = Config.Other.frustumNear
+    far = Config.Other.frustumFar
+    scale = near / monitor_distance
+
+    left = min(xs) * scale
+    right = max(xs) * scale
+    bottom = min(ys) * scale
+    top = max(ys) * scale
+
+    glFrustum(left, right, bottom, top, near, far)
+
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     gluLookAt(
-        shared_viewpoint[0] / 1000.0, shared_viewpoint[1] / 1000.0, shared_viewpoint[2] / 1000.0,
+        camera_position[0], camera_position[1], camera_position[2],
         0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0
+        up[0], up[1], up[2]
     )
 
 def draw_text(x, y, text):
@@ -74,7 +111,7 @@ def draw_debug_text():
 
 def draw_shapes():
     glPushMatrix()
-    glTranslatef(0.0, 0.2, 0.1)
+    glScalef(1000.0, 1000.0, 1000.0)
     glRotatef(alpha, 0.0, 1.0, 0.0)
 
     glPushMatrix()
@@ -128,7 +165,6 @@ def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     update_projection()
-    update_camera_position()
     draw_shapes()
     draw_debug_text()
 

@@ -39,7 +39,7 @@ def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name):
             success, rotation_vector, translation_vector = cv2.solvePnP(Config.FaceModel.model_mm, shared_landmarks, Config.Camera.matrix, Config.Camera.dist_coefficients, flags=Config.FaceModel.PNPMethod)
             if success:
                 live_viewpoint = translation_vector.flatten()
-                live_viewpoint[0] = live_viewpoint[0] - Config.Camera.position_relative_to_monitor_center_x_mm
+                live_viewpoint[0] = -(live_viewpoint[0] - Config.Camera.position_relative_to_monitor_center_x_mm)
                 live_viewpoint[1] = -(live_viewpoint[1] - Config.Camera.position_relative_to_monitor_center_y_mm)
                 live_viewpoint[2] = live_viewpoint[2] - Config.Camera.position_relative_to_monitor_center_z_mm
 
