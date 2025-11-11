@@ -17,53 +17,21 @@ now = time.time()
 def update_projection():
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
+    glFrustum(shared_viewpoint[3], shared_viewpoint[4], shared_viewpoint[5], shared_viewpoint[6], shared_viewpoint[7], shared_viewpoint[8])
 
-    camera_position = numpy.array(shared_viewpoint[:3], dtype=float)
+    # glLoadMatrixf([
+    #     2*near/(right-left), 0, 0, 0,
+    #     0, 2*near/(top-bottom), 0, 0,
+    #     (right + left) / (right - left), (top + bottom) / (top - bottom), -(far + near) / (far - near), -1,
+    #     0, 0, -2 * far * near / (far - near), 0])
 
-    forward = - camera_position
-    forward /= numpy.linalg.norm(forward)
-
-    world_up = numpy.array([0.0, 1.0, 0.0], dtype=float)
-    world_up /= numpy.linalg.norm(world_up)
-
-    right = numpy.cross(forward, world_up)
-    right /= numpy.linalg.norm(right)
-    up = numpy.cross(right, forward)
-    up /= numpy.linalg.norm(up)
-
-    hw, hh = Config.Screen.width_mm / 2.0, Config.Screen.height_mm / 2.0
-    corners = [
-        right * hw + up * hh,
-        -right * hw + up * hh,
-        right * hw - up * hh,
-        -right * hw - up * hh
-    ]
-
-    xs, ys = [], []
-    for p in corners:
-        v = p - camera_position
-        xs.append(numpy.dot(right, v))
-        ys.append(numpy.dot(up, v))
-
-    monitor_distance = -numpy.dot(forward, camera_position)
-
-    near = Config.Other.frustumNear
-    far = Config.Other.frustumFar
-    scale = near / monitor_distance
-
-    left = min(xs) * scale
-    right = max(xs) * scale
-    bottom = min(ys) * scale
-    top = max(ys) * scale
-
-    glFrustum(left, right, bottom, top, near, far)
 
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     gluLookAt(
-        camera_position[0], camera_position[1], camera_position[2],
+        shared_viewpoint[0], shared_viewpoint[1], shared_viewpoint[2],
         0.0, 0.0, 0.0,
-        up[0], up[1], up[2]
+        0.0, 1.0, 0.0
     )
 
 def draw_text(x, y, text):
@@ -191,7 +159,7 @@ def run(shm_dynamic_data_name, shm_viewpoint_name):
     shm_viewpoint = SharedMemory(name=shm_viewpoint_name)
     global shared_viewpoint
     shared_viewpoint = numpy.ndarray(
-        shape=(3,),
+        shape=(9,),
         dtype=numpy.float32,
         buffer=shm_viewpoint.buf
     )

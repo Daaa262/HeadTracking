@@ -89,7 +89,7 @@ class Config:
         ]
 
     class Other:
-        smoothingFactor = 0.001
+        smoothingFactor = 0.05
         smoothingFrequency = 0.005
         frustumNear = 1.0
         frustumFar = 10000.0
