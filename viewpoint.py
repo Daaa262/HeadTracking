@@ -31,18 +31,18 @@ def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     try:
-        x = 0
+        frames = 0
         last_time = time.time()
         last_time_smoothed = time.time()
         while shared_dynamic_data['running_flag'][0]:
             now = time.time()
             if now - last_time >= 1:
-                shared_dynamic_data["viewpoint_fps"][0] = x
-                x = 0
+                shared_dynamic_data["viewpoint_fps"][0] = frames
+                frames = 0
                 last_time = now
 
             if now - last_time_smoothed >= Config.Other.smoothingFrequency:
-                x += 1
+                frames += 1
                 last_time_smoothed = now
 
                 success, rotation_vector, translation_vector = cv2.solvePnP(Config.FaceModel.model_mm, shared_landmarks, Config.Camera.matrix, Config.Camera.dist_coefficients, flags=Config.FaceModel.PNPMethod)
@@ -58,36 +58,30 @@ def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name):
 
                     forward = -shared_viewpoint[:3]
                     forward /= numpy.linalg.norm(forward)
-                    world_up = [0, 1, 0]
-                    right = numpy.cross(forward, world_up)
+                    right = numpy.cross(forward, [0, 1, 0])
                     right /= numpy.linalg.norm(right)
                     up = numpy.cross(right, forward)
                     up /= numpy.linalg.norm(up)
 
-                    hw, hh = Config.Screen.width_mm / 2.0, Config.Screen.height_mm / 2.0
                     corners = [
-                        right * hw + up * hh,
-                        -right * hw + up * hh,
-                        right * hw - up * hh,
-                        -right * hw - up * hh
+                        [Config.Screen.width_mm / 2.0,  Config.Screen.height_mm / 2.0,  0],
+                        [-Config.Screen.width_mm / 2.0, Config.Screen.height_mm / 2.0,  0],
+                        [Config.Screen.width_mm / 2.0,  -Config.Screen.height_mm / 2.0, 0],
+                        [-Config.Screen.width_mm / 2.0, -Config.Screen.height_mm / 2.0, 0]
                     ]
 
-                    xs, ys = [], []
-                    for p in corners:
-                        v = p - shared_viewpoint[:3]
-                        xs.append(numpy.dot(right, v))
-                        ys.append(numpy.dot(up, v))
+                    x, y = [], []
+                    for corner in corners:
+                        corner_vector = corner - shared_viewpoint[:3]
+                        x.append(numpy.dot(corner_vector, right) * Config.Other.frustumNear / numpy.dot(corner_vector, forward))
+                        y.append(numpy.dot(corner_vector, up) * Config.Other.frustumNear / numpy.dot(corner_vector, forward))
 
-                    monitor_distance = -numpy.dot(forward, shared_viewpoint[:3])
-
+                    shared_viewpoint[3] = min(x)
+                    shared_viewpoint[4] = max(x)
+                    shared_viewpoint[5] = min(y)
+                    shared_viewpoint[6] = max(y)
                     shared_viewpoint[7] = Config.Other.frustumNear
                     shared_viewpoint[8] = Config.Other.frustumFar
-                    scale = Config.Other.frustumNear / monitor_distance
-
-                    shared_viewpoint[3] = min(xs) * scale
-                    shared_viewpoint[4] = max(xs) * scale
-                    shared_viewpoint[5] = min(ys) * scale
-                    shared_viewpoint[6] = max(ys) * scale
 
                     if Config.ResultSending.on:
                         data_dict = {
@@ -97,11 +91,13 @@ def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name):
                                 "y": float(shared_viewpoint[1]),
                                 "z": float(shared_viewpoint[2])
                             },
-                            "projectionMatrix": {
-
-                            },
-                            "modelViewMatrix": {
-
+                            "frustum": {
+                                "left": float(shared_viewpoint[3]),
+                                "right": float(shared_viewpoint[4]),
+                                "bottom": float(shared_viewpoint[5]),
+                                "top": float(shared_viewpoint[6]),
+                                "near": float(shared_viewpoint[7]),
+                                "far": float(shared_viewpoint[8])
                             }
                         }
 

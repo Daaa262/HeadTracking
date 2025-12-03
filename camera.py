@@ -26,15 +26,15 @@ def run(shm_dynamic_data_name, shm_frame_name):
     cap.set(cv2.CAP_PROP_FPS, Config.Camera.fps)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, Config.Camera.buffer_size)
 
-    x = 0
+    frames = 0
     last_time = time.time()
     try:
         while shared_dynamic_data['running_flag'][0]:
-            x += 1
+            frames += 1
             now = time.time()
             if now - last_time >= 1:
-                shared_dynamic_data["camera_fps"][0] = x
-                x = 0
+                shared_dynamic_data["camera_fps"][0] = frames
+                frames = 0
                 last_time = now
 
             ret, frame = cap.read()
