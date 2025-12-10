@@ -11,10 +11,14 @@ from OpenGL.GLUT import *
 
 alpha = 0.0
 shared_viewpoint = None
+snapshot = None
 now = time.time()
+lock = None
 
 def update_projection():
-    snapshot = shared_viewpoint[:]
+    global snapshot
+    with lock:
+        snapshot = shared_viewpoint[:]
 
     glMatrixMode(GL_PROJECTION)
     glLoadMatrixf(snapshot[3:19])
@@ -43,21 +47,21 @@ def draw_debug_text():
     glColor3f(1.0, 1.0, 1.0)
 
     draw_text(10, Config.Screen.height - 20,  f"Position:")
-    draw_text(10, Config.Screen.height - 40,  f"  x:                {shared_viewpoint[0]:8.3f}")
-    draw_text(10, Config.Screen.height - 60,  f"  y:                {shared_viewpoint[1]:8.3f}")
-    draw_text(10, Config.Screen.height - 80,  f"  z:                {shared_viewpoint[2]:8.3f}")
+    draw_text(10, Config.Screen.height - 40,  f"  x:                {snapshot[0]:8.3f}")
+    draw_text(10, Config.Screen.height - 60,  f"  y:                {snapshot[1]:8.3f}")
+    draw_text(10, Config.Screen.height - 80,  f"  z:                {snapshot[2]:8.3f}")
 
     draw_text(10, Config.Screen.height - 100, f"Projection Matrix:")
-    draw_text(10, Config.Screen.height - 120, f"{shared_viewpoint[3]:8.3f} {shared_viewpoint[4]:8.3f} {shared_viewpoint[5]:8.3f} {shared_viewpoint[6]:8.3f}")
-    draw_text(10, Config.Screen.height - 140, f"{shared_viewpoint[7]:8.3f} {shared_viewpoint[8]:8.3f} {shared_viewpoint[9]:8.3f} {shared_viewpoint[10]:8.3f}")
-    draw_text(10, Config.Screen.height - 160, f"{shared_viewpoint[11]:8.3f} {shared_viewpoint[12]:8.3f} {shared_viewpoint[13]:8.3f} {shared_viewpoint[14]:8.3f}")
-    draw_text(10, Config.Screen.height - 180, f"{shared_viewpoint[15]:8.3f} {shared_viewpoint[16]:8.3f} {shared_viewpoint[17]:8.3f} {shared_viewpoint[18]:8.3f}")
+    draw_text(10, Config.Screen.height - 120, f"{snapshot[3]:8.3f} {snapshot[4]:8.3f} {snapshot[5]:8.3f} {snapshot[6]:8.3f}")
+    draw_text(10, Config.Screen.height - 140, f"{snapshot[7]:8.3f} {snapshot[8]:8.3f} {snapshot[9]:8.3f} {snapshot[10]:8.3f}")
+    draw_text(10, Config.Screen.height - 160, f"{snapshot[11]:8.3f} {snapshot[12]:8.3f} {snapshot[13]:8.3f} {snapshot[14]:8.3f}")
+    draw_text(10, Config.Screen.height - 180, f"{snapshot[15]:8.3f} {snapshot[16]:8.3f} {snapshot[17]:8.3f} {snapshot[18]:8.3f}")
 
     draw_text(10, Config.Screen.height - 200, f"View Matrix:")
-    draw_text(10, Config.Screen.height - 220, f"{shared_viewpoint[19]:8.3f} {shared_viewpoint[20]:8.3f} {shared_viewpoint[21]:8.3f} {shared_viewpoint[22]:8.3f}")
-    draw_text(10, Config.Screen.height - 240, f"{shared_viewpoint[23]:8.3f} {shared_viewpoint[24]:8.3f} {shared_viewpoint[25]:8.3f} {shared_viewpoint[26]:8.3f}")
-    draw_text(10, Config.Screen.height - 260, f"{shared_viewpoint[27]:8.3f} {shared_viewpoint[28]:8.3f} {shared_viewpoint[29]:8.3f} {shared_viewpoint[30]:8.3f}")
-    draw_text(10, Config.Screen.height - 280, f"{shared_viewpoint[31]:8.3f} {shared_viewpoint[32]:8.3f} {shared_viewpoint[33]:8.3f} {shared_viewpoint[34]:8.3f}")
+    draw_text(10, Config.Screen.height - 220, f"{snapshot[19]:8.3f} {snapshot[20]:8.3f} {snapshot[21]:8.3f} {snapshot[22]:8.3f}")
+    draw_text(10, Config.Screen.height - 240, f"{snapshot[23]:8.3f} {snapshot[24]:8.3f} {snapshot[25]:8.3f} {snapshot[26]:8.3f}")
+    draw_text(10, Config.Screen.height - 260, f"{snapshot[27]:8.3f} {snapshot[28]:8.3f} {snapshot[29]:8.3f} {snapshot[30]:8.3f}")
+    draw_text(10, Config.Screen.height - 280, f"{snapshot[31]:8.3f} {snapshot[32]:8.3f} {snapshot[33]:8.3f} {snapshot[34]:8.3f}")
 
     draw_text(10, Config.Screen.height - 300, f"Dynamic Data:")
     draw_text(10, Config.Screen.height - 320, f"  smoothing_factor:{shared_dynamic_data['smoothing_factor'][0]:8.6f}")
@@ -168,7 +172,9 @@ def init():
 
     glutMainLoop()
 
-def run(shm_dynamic_data_name, shm_viewpoint_name):
+def run(shm_dynamic_data_name, shm_viewpoint_name, lock_viewpoint):
+    global lock
+    lock = lock_viewpoint
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
     global shared_dynamic_data
     shared_dynamic_data = numpy.ndarray(
@@ -186,7 +192,7 @@ def run(shm_dynamic_data_name, shm_viewpoint_name):
 
     global asteroids_data
     asteroids_data = []
-    for i in range(120):
+    for i in range(80):
         theta = 2 * math.pi * random()
         u = 2 * random() - 1
         r = math.sqrt(1 - u * u)

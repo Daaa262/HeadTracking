@@ -4,7 +4,7 @@ import numpy
 import time
 from multiprocessing.shared_memory import SharedMemory
 
-def run(shm_dynamic_data_name, shm_frame_name, shm_landmarks_name):
+def run(shm_dynamic_data_name, shm_frame_name, shm_landmarks_name, lock_frame, lock_landmarks):
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
     shared_dynamic_data = numpy.ndarray(
         shape=(1,),
@@ -36,15 +36,17 @@ def run(shm_dynamic_data_name, shm_frame_name, shm_landmarks_name):
                 frames = 0
                 last_time = now
 
-            shared_frame.flags.writeable = False
-            mesh = Config.FaceMesh.face_mesh.process(shared_frame)
-            shared_frame.flags.writeable = True
+            with lock_frame:
+                shared_frame.flags.writeable = False
+                mesh = Config.FaceMesh.face_mesh.process(shared_frame)
+                shared_frame.flags.writeable = True
 
             if mesh.multi_face_landmarks:
                 landmarks = mesh.multi_face_landmarks[0].landmark
-                for i, index in enumerate(Config.FaceMesh.landmarks.values()):
-                    shared_landmarks[i, 0] = landmarks[index].x * Config.Camera.width
-                    shared_landmarks[i, 1] = landmarks[index].y * Config.Camera.height
+                with lock_landmarks:
+                    for i, index in enumerate(Config.FaceMesh.landmarks.values()):
+                        shared_landmarks[i, 0] = landmarks[index].x * Config.Camera.width
+                        shared_landmarks[i, 1] = landmarks[index].y * Config.Camera.height
 
     finally:
         shm_dynamic_data.close()

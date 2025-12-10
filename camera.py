@@ -1,12 +1,13 @@
 from config import Config
 import os
-os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
 import cv2
 import numpy
 import time
 from multiprocessing.shared_memory import SharedMemory
 
-def run(shm_dynamic_data_name, shm_frame_name):
+os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
+
+def run(shm_dynamic_data_name, shm_frame_name, lock_frame):
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
     shared_dynamic_data = numpy.ndarray(
         shape=(1,),
@@ -43,7 +44,8 @@ def run(shm_dynamic_data_name, shm_frame_name):
                 time.sleep(0.1)
                 continue
 
-            shared_frame[:] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            with lock_frame:
+                shared_frame[:] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     finally:
         cap.release()

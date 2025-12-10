@@ -1,7 +1,7 @@
 from config import Config
 
 import numpy
-from multiprocessing import Process
+from multiprocessing import Process, Lock
 from multiprocessing.shared_memory import SharedMemory
 
 from camera import run as camera_run
@@ -21,11 +21,15 @@ if __name__ == "__main__":
     shm_landmarks = SharedMemory(create=True, size=56)
     shm_viewpoint = SharedMemory(create=True, size=140)
 
-    camera = Process(target = camera_run, args=(shm_dynamic_data.name, shm_frame.name,))
-    face_mesh = Process(target=face_mesh_run, args=(shm_dynamic_data.name, shm_frame.name, shm_landmarks.name))
-    viewpoint = Process(target=viewpoint_run, args=(shm_dynamic_data.name, shm_landmarks.name, shm_viewpoint.name))
+    lock_frame = Lock()
+    lock_landmarks = Lock()
+    lock_viewpoint = Lock()
+
+    camera = Process(target = camera_run, args=(shm_dynamic_data.name, shm_frame.name, lock_frame))
+    face_mesh = Process(target=face_mesh_run, args=(shm_dynamic_data.name, shm_frame.name, shm_landmarks.name, lock_frame, lock_landmarks))
+    viewpoint = Process(target=viewpoint_run, args=(shm_dynamic_data.name, shm_landmarks.name, shm_viewpoint.name, lock_landmarks, lock_viewpoint))
     if Config.Debug.on:
-        debug = Process(target=debug_run, args=(shm_dynamic_data.name, shm_viewpoint.name,))
+        debug = Process(target=debug_run, args=(shm_dynamic_data.name, shm_viewpoint.name, lock_viewpoint))
 
     try:
         camera.start()

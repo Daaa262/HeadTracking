@@ -25,7 +25,7 @@ def make_projection(eye):
     m[3, 2] = -1.0
     return m
 
-def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name):
+def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, lock_landmarks, lock_viewpoint):
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
     shared_dynamic_data = numpy.ndarray(
         shape=(1,),
@@ -63,20 +63,22 @@ def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name):
                 frames += 1
                 last_time_smoothed = now
 
-                success, rotation_vector, translation_vector = cv2.solvePnP(Config.FaceModel.model_mm, shared_landmarks[:], Config.Camera.matrix, Config.Camera.dist_coefficients, flags=Config.FaceModel.PNPMethod)
+                with lock_landmarks:
+                    success, rotation_vector, translation_vector = cv2.solvePnP(Config.FaceModel.model_mm, shared_landmarks[:], Config.Camera.matrix, Config.Camera.dist_coefficients, flags=Config.FaceModel.PNPMethod)
                 if success:
                     live_viewpoint = translation_vector.flatten()
                     live_viewpoint[0] = -(live_viewpoint[0] - Config.Camera.position_offset_x_mm)
                     live_viewpoint[1] = -(live_viewpoint[1] - Config.Camera.position_offset_y_mm)
                     live_viewpoint[2] = live_viewpoint[2] - Config.Camera.position_offset_z_mm
 
-                    distance = numpy.linalg.norm(live_viewpoint - shared_viewpoint[:3])
-                    alpha = (1 - numpy.exp(-shared_dynamic_data["smoothing_factor"][0] * distance))
-                    shared_viewpoint[:3] = alpha * live_viewpoint + (1 - alpha) * shared_viewpoint[:3]
+                    with lock_viewpoint:
+                        distance = numpy.linalg.norm(live_viewpoint - shared_viewpoint[:3])
+                        alpha = (1 - numpy.exp(-shared_dynamic_data["smoothing_factor"][0] * distance))
+                        shared_viewpoint[:3] = alpha * live_viewpoint + (1 - alpha) * shared_viewpoint[:3]
 
-                    projection = make_projection(shared_viewpoint[:3])
-                    shared_viewpoint[3:19] = projection.T.flatten()
-                    shared_viewpoint[19:35] = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -shared_viewpoint[0], -shared_viewpoint[1], -shared_viewpoint[2], 1]
+                        projection = make_projection(shared_viewpoint[:3])
+                        shared_viewpoint[3:19] = projection.T.flatten()
+                        shared_viewpoint[19:35] = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -shared_viewpoint[0], -shared_viewpoint[1], -shared_viewpoint[2], 1]
 
                     if Config.ResultSending.on:
                         data_dict = {
