@@ -14,7 +14,7 @@ class Config:
 
     class Camera:
         position_offset_x_mm = 0
-        position_offset_y_mm = 60
+        position_offset_y_mm = 0
         position_offset_z_mm = 0
 
         width = 1920
