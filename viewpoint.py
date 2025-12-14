@@ -88,12 +88,8 @@ def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, lock_land
                                 "y": float(shared_viewpoint[1]),
                                 "z": float(shared_viewpoint[2])
                             },
-                            "view matrix": {
-                                shared_viewpoint[3:19]
-                            },
-                            "projection matrix": {
-                                shared_viewpoint[19:35]
-                            }
+                            "view_matrix": list(map(float, shared_viewpoint[3:19])),
+                            "projection_matrix": list(map(float, shared_viewpoint[19:35]))
                         }
 
                         data = json.dumps(data_dict).encode("utf-8")

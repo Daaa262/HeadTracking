@@ -36,6 +36,7 @@ if __name__ == "__main__":
         face_mesh.start()
         viewpoint.start()
         if Config.Debug.on:
+            # noinspection PyUnboundLocalVariable
             debug.start()
 
         camera.join()

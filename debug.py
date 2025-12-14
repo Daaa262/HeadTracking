@@ -192,7 +192,7 @@ def run(shm_dynamic_data_name, shm_viewpoint_name, lock_viewpoint):
 
     global asteroids_data
     asteroids_data = []
-    for i in range(80):
+    for i in range(120):
         theta = 2 * math.pi * random()
         u = 2 * random() - 1
         r = math.sqrt(1 - u * u)
