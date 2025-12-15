@@ -1,4 +1,3 @@
-from config import Config
 import os
 import cv2
 import numpy
@@ -7,25 +6,25 @@ from multiprocessing.shared_memory import SharedMemory
 
 os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
 
-def run(shm_dynamic_data_name, shm_frame_name, lock_frame):
+def run(config, shm_dynamic_data_name, shm_frame_name, lock_frame):
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
     shared_dynamic_data = numpy.ndarray(
         shape=(1,),
-        dtype=numpy.dtype(Config.Debug.dynamic_fields),
+        dtype=numpy.dtype(config.debug.dynamic_fields),
         buffer=shm_dynamic_data.buf)
 
     shm_frame = SharedMemory(name=shm_frame_name)
     shared_frame = numpy.ndarray(
-        shape=(Config.Camera.height, Config.Camera.width, 3),
+        shape=(config.camera.height, config.camera.width, 3),
         dtype=numpy.uint8,
         buffer=shm_frame.buf
     )
 
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, Config.Camera.width)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.Camera.height)
-    cap.set(cv2.CAP_PROP_FPS, Config.Camera.fps)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, Config.Camera.buffer_size)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.camera.width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.camera.height)
+    cap.set(cv2.CAP_PROP_FPS, config.camera.fps)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, config.camera.buffer_size)
 
     frames = 0
     last_time = time.time()

@@ -1,5 +1,3 @@
-from config import Config
-
 import json
 import cv2
 import numpy
@@ -7,29 +5,29 @@ import time
 import socket
 from multiprocessing.shared_memory import SharedMemory
 
-def make_projection(eye):
-    left = (-Config.Screen.width_mm / 2 - eye[0]) * Config.Other.frustumNear / eye[2]
-    right = (Config.Screen.width_mm / 2 - eye[0]) * Config.Other.frustumNear / eye[2]
-    bottom = (-Config.Screen.height_mm / 2 - eye[1]) * Config.Other.frustumNear / eye[2]
-    top = (Config.Screen.height_mm / 2 - eye[1]) * Config.Other.frustumNear / eye[2]
+def make_projection(config, eye):
+    left = (-config.screen.width_mm / 2 - eye[0]) * config.other.frustumNear / eye[2]
+    right = (config.screen.width_mm / 2 - eye[0]) * config.other.frustumNear / eye[2]
+    bottom = (-config.screen.height_mm / 2 - eye[1]) * config.other.frustumNear / eye[2]
+    top = (config.screen.height_mm / 2 - eye[1]) * config.other.frustumNear / eye[2]
 
     m = numpy.zeros((4, 4))
-    m[0, 0] = 2.0 * Config.Other.frustumNear / (right - left)
+    m[0, 0] = 2.0 * config.other.frustumNear / (right - left)
     m[0, 2] = (right + left) / (right - left)
-    m[1, 1] = 2.0 * Config.Other.frustumNear / (top - bottom)
+    m[1, 1] = 2.0 * config.other.frustumNear / (top - bottom)
     m[1, 2] = (top + bottom) / (top - bottom)
-    m[2, 2] = -(Config.Other.frustumFar + Config.Other.frustumNear) / (
-                Config.Other.frustumFar - Config.Other.frustumNear)
-    m[2, 3] = -2.0 * Config.Other.frustumFar * Config.Other.frustumNear / (
-                Config.Other.frustumFar - Config.Other.frustumNear)
+    m[2, 2] = -(config.other.frustumFar + config.other.frustumNear) / (
+                config.other.frustumFar - config.other.frustumNear)
+    m[2, 3] = -2.0 * config.other.frustumFar * config.other.frustumNear / (
+                config.other.frustumFar - config.other.frustumNear)
     m[3, 2] = -1.0
     return m
 
-def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, lock_landmarks, lock_viewpoint):
+def run(config, shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, lock_landmarks, lock_viewpoint):
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
     shared_dynamic_data = numpy.ndarray(
         shape=(1,),
-        dtype=numpy.dtype(Config.Debug.dynamic_fields),
+        dtype=numpy.dtype(config.debug.dynamic_fields),
         buffer=shm_dynamic_data.buf)
 
     shm_landmarks = SharedMemory(name=shm_landmarks_name)
@@ -59,28 +57,28 @@ def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, lock_land
                 frames = 0
                 last_time = now
 
-            if now - last_time_smoothed >= Config.Other.smoothingFrequency:
+            if now - last_time_smoothed >= config.other.smoothingFrequency:
                 frames += 1
                 last_time_smoothed = now
 
                 with lock_landmarks:
-                    success, rotation_vector, translation_vector = cv2.solvePnP(Config.FaceModel.model_mm, shared_landmarks[:], Config.Camera.matrix, Config.Camera.dist_coefficients, flags=Config.FaceModel.PNPMethod)
+                    success, rotation_vector, translation_vector = cv2.solvePnP(config.face.model_mm, shared_landmarks[:], config.camera.matrix, config.camera.dist_coefficients, flags=config.face.PNPMethod)
                 if success:
                     live_viewpoint = translation_vector.flatten()
-                    live_viewpoint[0] = -(live_viewpoint[0] - Config.Camera.position_offset_x_mm)
-                    live_viewpoint[1] = -(live_viewpoint[1] - Config.Camera.position_offset_y_mm)
-                    live_viewpoint[2] = live_viewpoint[2] - Config.Camera.position_offset_z_mm
+                    live_viewpoint[0] = -(live_viewpoint[0] - config.camera.position_offset_x_mm)
+                    live_viewpoint[1] = -(live_viewpoint[1] - config.camera.position_offset_y_mm)
+                    live_viewpoint[2] = live_viewpoint[2] - config.camera.position_offset_z_mm
 
                     with lock_viewpoint:
                         distance = numpy.linalg.norm(live_viewpoint - shared_viewpoint[:3])
                         alpha = (1 - numpy.exp(-shared_dynamic_data["smoothing_factor"][0] * distance))
                         shared_viewpoint[:3] = alpha * live_viewpoint + (1 - alpha) * shared_viewpoint[:3]
 
-                        projection = make_projection(shared_viewpoint[:3])
+                        projection = make_projection(config, shared_viewpoint[:3])
                         shared_viewpoint[3:19] = projection.T.flatten()
                         shared_viewpoint[19:35] = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -shared_viewpoint[0], -shared_viewpoint[1], -shared_viewpoint[2], 1]
 
-                    if Config.ResultSending.on:
+                    if config.resultSending.on:
                         data_dict = {
                             "timestamp": time.time(),
                             "viewpoint": {
@@ -93,7 +91,7 @@ def run(shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, lock_land
                         }
 
                         data = json.dumps(data_dict).encode("utf-8")
-                        sock.sendto(data, (Config.ResultSending.HOST, Config.ResultSending.PORT))
+                        sock.sendto(data, (config.resultSending.HOST, config.resultSending.PORT))
 
     finally:
         shm_dynamic_data.close()

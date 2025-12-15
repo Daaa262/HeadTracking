@@ -1,9 +1,6 @@
 import math
 import time
 from random import random
-
-from config import Config
-
 import numpy
 from multiprocessing.shared_memory import SharedMemory
 from OpenGL.GL import *
@@ -14,6 +11,9 @@ shared_viewpoint = None
 snapshot = None
 now = time.time()
 lock = None
+shared_dynamic_data = None
+asteroids_data = None
+config = None
 
 def update_projection():
     global snapshot
@@ -35,7 +35,7 @@ def draw_debug_text():
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
     glLoadIdentity()
-    glOrtho(0, Config.Screen.width, 0, Config.Screen.height, -1, 1)
+    glOrtho(0, config.screen.width, 0, config.screen.height, -1, 1)
 
     glMatrixMode(GL_MODELVIEW)
     glPushMatrix()
@@ -46,28 +46,29 @@ def draw_debug_text():
 
     glColor3f(1.0, 1.0, 1.0)
 
-    draw_text(10, Config.Screen.height - 20,  f"Position:")
-    draw_text(10, Config.Screen.height - 40,  f"  x:                {snapshot[0]:8.3f}")
-    draw_text(10, Config.Screen.height - 60,  f"  y:                {snapshot[1]:8.3f}")
-    draw_text(10, Config.Screen.height - 80,  f"  z:                {snapshot[2]:8.3f}")
+    if snapshot is not None:
+        draw_text(10, config.screen.height - 20,  f"Position:")
+        draw_text(10, config.screen.height - 40,  f"  x:                {snapshot[0]:8.3f}")
+        draw_text(10, config.screen.height - 60,  f"  y:                {snapshot[1]:8.3f}")
+        draw_text(10, config.screen.height - 80,  f"  z:                {snapshot[2]:8.3f}")
 
-    draw_text(10, Config.Screen.height - 100, f"Projection Matrix:")
-    draw_text(10, Config.Screen.height - 120, f"{snapshot[3]:8.3f} {snapshot[4]:8.3f} {snapshot[5]:8.3f} {snapshot[6]:8.3f}")
-    draw_text(10, Config.Screen.height - 140, f"{snapshot[7]:8.3f} {snapshot[8]:8.3f} {snapshot[9]:8.3f} {snapshot[10]:8.3f}")
-    draw_text(10, Config.Screen.height - 160, f"{snapshot[11]:8.3f} {snapshot[12]:8.3f} {snapshot[13]:8.3f} {snapshot[14]:8.3f}")
-    draw_text(10, Config.Screen.height - 180, f"{snapshot[15]:8.3f} {snapshot[16]:8.3f} {snapshot[17]:8.3f} {snapshot[18]:8.3f}")
+        draw_text(10, config.screen.height - 100, f"Projection Matrix:")
+        draw_text(10, config.screen.height - 120, f"{snapshot[3]:8.3f} {snapshot[4]:8.3f} {snapshot[5]:8.3f} {snapshot[6]:8.3f}")
+        draw_text(10, config.screen.height - 140, f"{snapshot[7]:8.3f} {snapshot[8]:8.3f} {snapshot[9]:8.3f} {snapshot[10]:8.3f}")
+        draw_text(10, config.screen.height - 160, f"{snapshot[11]:8.3f} {snapshot[12]:8.3f} {snapshot[13]:8.3f} {snapshot[14]:8.3f}")
+        draw_text(10, config.screen.height - 180, f"{snapshot[15]:8.3f} {snapshot[16]:8.3f} {snapshot[17]:8.3f} {snapshot[18]:8.3f}")
 
-    draw_text(10, Config.Screen.height - 200, f"View Matrix:")
-    draw_text(10, Config.Screen.height - 220, f"{snapshot[19]:8.3f} {snapshot[20]:8.3f} {snapshot[21]:8.3f} {snapshot[22]:8.3f}")
-    draw_text(10, Config.Screen.height - 240, f"{snapshot[23]:8.3f} {snapshot[24]:8.3f} {snapshot[25]:8.3f} {snapshot[26]:8.3f}")
-    draw_text(10, Config.Screen.height - 260, f"{snapshot[27]:8.3f} {snapshot[28]:8.3f} {snapshot[29]:8.3f} {snapshot[30]:8.3f}")
-    draw_text(10, Config.Screen.height - 280, f"{snapshot[31]:8.3f} {snapshot[32]:8.3f} {snapshot[33]:8.3f} {snapshot[34]:8.3f}")
+        draw_text(10, config.screen.height - 200, f"View Matrix:")
+        draw_text(10, config.screen.height - 220, f"{snapshot[19]:8.3f} {snapshot[20]:8.3f} {snapshot[21]:8.3f} {snapshot[22]:8.3f}")
+        draw_text(10, config.screen.height - 240, f"{snapshot[23]:8.3f} {snapshot[24]:8.3f} {snapshot[25]:8.3f} {snapshot[26]:8.3f}")
+        draw_text(10, config.screen.height - 260, f"{snapshot[27]:8.3f} {snapshot[28]:8.3f} {snapshot[29]:8.3f} {snapshot[30]:8.3f}")
+        draw_text(10, config.screen.height - 280, f"{snapshot[31]:8.3f} {snapshot[32]:8.3f} {snapshot[33]:8.3f} {snapshot[34]:8.3f}")
 
-    draw_text(10, Config.Screen.height - 300, f"Dynamic Data:")
-    draw_text(10, Config.Screen.height - 320, f"  smoothing_factor:{shared_dynamic_data['smoothing_factor'][0]:8.6f}")
-    draw_text(10, Config.Screen.height - 340, f"  camera_fps:      {shared_dynamic_data['camera_fps'][0]}")
-    draw_text(10, Config.Screen.height - 360, f"  face_mesh_fps:   {shared_dynamic_data['face_mesh_fps'][0]}")
-    draw_text(10, Config.Screen.height - 380, f"  viewpoint_fps:   {shared_dynamic_data['viewpoint_fps'][0]}")
+        draw_text(10, config.screen.height - 300, f"Dynamic Data:")
+        draw_text(10, config.screen.height - 320, f"  smoothing_factor:{shared_dynamic_data['smoothing_factor'][0]:8.6f}")
+        draw_text(10, config.screen.height - 340, f"  camera_fps:      {shared_dynamic_data['camera_fps'][0]}")
+        draw_text(10, config.screen.height - 360, f"  face_mesh_fps:   {shared_dynamic_data['face_mesh_fps'][0]}")
+        draw_text(10, config.screen.height - 380, f"  viewpoint_fps:   {shared_dynamic_data['viewpoint_fps'][0]}")
 
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_LIGHTING)
@@ -104,8 +105,8 @@ def draw_monitor_frame():
     glColor3f(0.0, 1.0, 0.0)
     glLineWidth(3.0)
 
-    w = Config.Screen.width_mm / 2.0
-    h = Config.Screen.height_mm / 2.0
+    w = config.screen.width_mm / 2.0
+    h = config.screen.height_mm / 2.0
 
     glBegin(GL_LINE_LOOP)
     glVertex3f(-w, -h, 0.0)
@@ -146,7 +147,7 @@ def keyboard(key, x, y):
 def init():
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGB | GLUT_MULTISAMPLE)
-    glutInitWindowSize(Config.Screen.width, Config.Screen.height)
+    glutInitWindowSize(config.screen.width, config.screen.height)
     glutCreateWindow(b"HeadTrack Debug")
 
     glEnable(GL_NORMALIZE)
@@ -172,25 +173,24 @@ def init():
 
     glutMainLoop()
 
-def run(shm_dynamic_data_name, shm_viewpoint_name, lock_viewpoint):
-    global lock
+def run(global_config, shm_dynamic_data_name, shm_viewpoint_name, lock_viewpoint):
+    global lock, shared_dynamic_data, shared_viewpoint, asteroids_data, config
+    config = global_config
+
     lock = lock_viewpoint
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
-    global shared_dynamic_data
     shared_dynamic_data = numpy.ndarray(
         shape=(1,),
-        dtype=numpy.dtype(Config.Debug.dynamic_fields),
+        dtype=numpy.dtype(config.debug.dynamic_fields),
         buffer=shm_dynamic_data.buf)
 
     shm_viewpoint = SharedMemory(name=shm_viewpoint_name)
-    global shared_viewpoint
     shared_viewpoint = numpy.ndarray(
         shape=(35,),
         dtype=numpy.float32,
         buffer=shm_viewpoint.buf
     )
 
-    global asteroids_data
     asteroids_data = []
     for i in range(120):
         theta = 2 * math.pi * random()
