@@ -6,20 +6,20 @@ import socket
 from multiprocessing.shared_memory import SharedMemory
 
 def make_projection(config, eye):
-    left = (-config.screen.width_mm / 2 - eye[0]) * config.other.frustumNear / eye[2]
-    right = (config.screen.width_mm / 2 - eye[0]) * config.other.frustumNear / eye[2]
-    bottom = (-config.screen.height_mm / 2 - eye[1]) * config.other.frustumNear / eye[2]
-    top = (config.screen.height_mm / 2 - eye[1]) * config.other.frustumNear / eye[2]
+    left = (-config.screen.width_mm / 2 - eye[0]) * config.other.nearPlane / eye[2]
+    right = (config.screen.width_mm / 2 - eye[0]) * config.other.nearPlane / eye[2]
+    bottom = (-config.screen.height_mm / 2 - eye[1]) * config.other.nearPlane / eye[2]
+    top = (config.screen.height_mm / 2 - eye[1]) * config.other.nearPlane / eye[2]
 
     m = numpy.zeros((4, 4))
-    m[0, 0] = 2.0 * config.other.frustumNear / (right - left)
+    m[0, 0] = 2.0 * config.other.nearPlane / (right - left)
     m[0, 2] = (right + left) / (right - left)
-    m[1, 1] = 2.0 * config.other.frustumNear / (top - bottom)
+    m[1, 1] = 2.0 * config.other.nearPlane / (top - bottom)
     m[1, 2] = (top + bottom) / (top - bottom)
-    m[2, 2] = -(config.other.frustumFar + config.other.frustumNear) / (
-                config.other.frustumFar - config.other.frustumNear)
-    m[2, 3] = -2.0 * config.other.frustumFar * config.other.frustumNear / (
-                config.other.frustumFar - config.other.frustumNear)
+    m[2, 2] = -(config.other.farPlane + config.other.nearPlane) / (
+            config.other.farPlane - config.other.nearPlane)
+    m[2, 3] = -2.0 * config.other.farPlane * config.other.nearPlane / (
+            config.other.farPlane - config.other.nearPlane)
     m[3, 2] = -1.0
     return m
 

@@ -91,8 +91,8 @@ class Config:
     class Other:
         smoothingFactor = 0.05
         smoothingFrequency = 0.005
-        frustumNear = 1.0
-        frustumFar = 5000.0
+        nearPlane = 1.0
+        farPlane = 5000.0
 
     def __init__(self):
         self.screen = self.Screen()
