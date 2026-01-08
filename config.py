@@ -13,9 +13,9 @@ class Config:
             self.height_mm = get_monitors()[self.primary].height_mm
 
     class Camera:
-        position_offset_x_mm = 0
-        position_offset_y_mm = 0
-        position_offset_z_mm = 0
+        position_offset_x_mm = 0.0
+        position_offset_y_mm = 148.0
+        position_offset_z_mm = 0.0
 
         auto_detect_camera_parameters = False
         width = 1920
@@ -62,13 +62,13 @@ class Config:
         }
 
         model_mm = numpy.array([
-            [0.0, -30.0, 5.0],
-            [0.0, -50.0, -5.0],
-            [-65.0, 0.0, -40.0],
-            [65.0, 0.0, -40.0],
-            [0.0, 50.0, -15.0],
-            [-35.0, -15.0, -10.0],
-            [35.0, -15.0, -10.0],
+            [0.0, -15.0, 15.0],
+            [0.0, -35.0, 5.0],
+            [-65.0, 15.0, -30.0],
+            [65.0, 15.0, -30.0],
+            [0.0, 65.0, -5.0],
+            [-35.0, 0.0, 0.0],
+            [35.0, 0.0, 0.0],
         ], dtype=numpy.float32)
 
         PNPMethod = cv2.SOLVEPNP_ITERATIVE
