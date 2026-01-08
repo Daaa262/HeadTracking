@@ -11,16 +11,15 @@ def make_projection(config, eye):
     bottom = (-config.screen.height_mm / 2 - eye[1]) * config.other.nearPlane / eye[2]
     top = (config.screen.height_mm / 2 - eye[1]) * config.other.nearPlane / eye[2]
 
-    m = numpy.zeros((4, 4))
-    m[0, 0] = 2.0 * config.other.nearPlane / (right - left)
-    m[0, 2] = (right + left) / (right - left)
-    m[1, 1] = 2.0 * config.other.nearPlane / (top - bottom)
-    m[1, 2] = (top + bottom) / (top - bottom)
-    m[2, 2] = -(config.other.farPlane + config.other.nearPlane) / (
-            config.other.farPlane - config.other.nearPlane)
-    m[2, 3] = -2.0 * config.other.farPlane * config.other.nearPlane / (
-            config.other.farPlane - config.other.nearPlane)
-    m[3, 2] = -1.0
+    m = numpy.zeros(16)
+    m[0] = 2.0 * config.other.nearPlane / (right - left)
+    m[5] = 2.0 * config.other.nearPlane / (top - bottom)
+    m[8] = (right + left) / (right - left)
+    m[9] = (top + bottom) / (top - bottom)
+    m[10] = (config.other.farPlane + config.other.nearPlane) / (config.other.nearPlane - config.other.farPlane)
+    m[11] = -1.0
+    m[14] = 2.0 * config.other.farPlane * config.other.nearPlane / (config.other.nearPlane - config.other.farPlane)
+
     return m
 
 def run(config, shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, lock_landmarks, lock_viewpoint):
@@ -62,7 +61,7 @@ def run(config, shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, l
                 last_time_smoothed = now
 
                 with lock_landmarks:
-                    success, rotation_vector, translation_vector = cv2.solvePnP(config.face.model_mm, shared_landmarks[:], config.camera.matrix, config.camera.dist_coefficients, flags=config.face.PNPMethod)
+                    success, _, translation_vector = cv2.solvePnP(config.face.model_mm, shared_landmarks[:], config.camera.matrix, config.camera.dist_coefficients, flags=config.face.PNPMethod)
                 if success:
                     live_viewpoint = translation_vector.flatten()
                     live_viewpoint[0] = -(live_viewpoint[0] - config.camera.position_offset_x_mm)
@@ -71,11 +70,10 @@ def run(config, shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, l
 
                     with lock_viewpoint:
                         distance = numpy.linalg.norm(live_viewpoint - shared_viewpoint[:3])
-                        alpha = (1 - numpy.exp(-shared_dynamic_data["smoothing_factor"][0] * distance))
+                        alpha = 1 - numpy.exp(-shared_dynamic_data["smoothing_factor"][0] * distance)
                         shared_viewpoint[:3] = alpha * live_viewpoint + (1 - alpha) * shared_viewpoint[:3]
 
-                        projection = make_projection(config, shared_viewpoint[:3])
-                        shared_viewpoint[3:19] = projection.T.flatten()
+                        shared_viewpoint[3:19] = make_projection(config, shared_viewpoint[:3])
                         shared_viewpoint[19:35] = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -shared_viewpoint[0], -shared_viewpoint[1], -shared_viewpoint[2], 1]
 
                     if config.resultSending.on:
