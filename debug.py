@@ -15,6 +15,28 @@ shared_dynamic_data = None
 asteroids_data = None
 config = None
 
+cam_pos = [0.0, 0.0, 0.0]
+keys_down = set()
+
+def key_down(key, x, y):
+    global shared_dynamic_data, cam_pos
+
+    if key == b'r':
+        cam_pos = [0.0, 0.0, 0.0]
+    elif key == b'1':
+        shared_dynamic_data['smoothing_factor'][0] /= 2
+    elif key == b'2':
+        shared_dynamic_data['smoothing_factor'][0] *= 2
+    elif key == b'q':
+        shared_dynamic_data['running_flag'][0] = 0
+        glutLeaveMainLoop()
+
+    keys_down.add(key)
+
+def key_up(key, x, y):
+    if key in keys_down:
+        keys_down.remove(key)
+
 def update_projection():
     global snapshot
     with lock:
@@ -77,6 +99,22 @@ def draw_debug_text():
     glPopMatrix()
     glMatrixMode(GL_MODELVIEW)
 
+def update_camera_position(dt):
+    speed = 300
+
+    if b'w' in keys_down:
+        cam_pos[2] -= dt * speed
+    if b's' in keys_down:
+        cam_pos[2] += dt * speed
+    if b'a' in keys_down:
+        cam_pos[0] -= dt * speed
+    if b'd' in keys_down:
+        cam_pos[0] += dt * speed
+    if b' ' in keys_down:
+        cam_pos[1] += dt * speed
+    if b'c' in keys_down:
+        cam_pos[1] -= dt * speed
+
 def draw_shapes():
     glPushMatrix()
 
@@ -120,6 +158,9 @@ def draw_monitor_frame():
 
 def display():
     global alpha, now
+
+    update_camera_position(time.time() - now)
+
     alpha = alpha + (time.time() - now) * 100
     now = time.time()
 
@@ -127,22 +168,17 @@ def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     update_projection()
+
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glTranslatef(-cam_pos[0], -cam_pos[1], -cam_pos[2])
     draw_shapes()
     draw_monitor_frame()
+    glPopMatrix()
+
     draw_debug_text()
 
     glutSwapBuffers()
-    pass
-
-def keyboard(key, x, y):
-    global shared_dynamic_data
-    if key == b'1':
-        shared_dynamic_data['smoothing_factor'][0] /= 2
-    elif key == b'2':
-        shared_dynamic_data['smoothing_factor'][0] *= 2
-    elif key == b'q':
-        shared_dynamic_data['running_flag'][0] = 0
-        glutLeaveMainLoop()
 
 def init():
     glutInit()
@@ -168,7 +204,8 @@ def init():
 
     glutIdleFunc(display)
     glutDisplayFunc(display)
-    glutKeyboardFunc(keyboard)
+    glutKeyboardFunc(key_down)
+    glutKeyboardUpFunc(key_up)
     glutFullScreen()
 
     glutMainLoop()
