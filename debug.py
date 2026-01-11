@@ -137,7 +137,6 @@ def draw_shapes():
 
     glPopMatrix()
 
-
 def draw_monitor_frame():
     glDisable(GL_LIGHTING)
     glColor3f(0.0, 1.0, 0.0)
@@ -184,7 +183,7 @@ def init():
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGB | GLUT_MULTISAMPLE)
     glutInitWindowSize(config.screen.width, config.screen.height)
-    glutCreateWindow(b"HeadTrack Debug")
+    glutCreateWindow(b"Debug")
 
     glEnable(GL_NORMALIZE)
     glEnable(GL_DEPTH_TEST)

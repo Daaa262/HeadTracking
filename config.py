@@ -74,12 +74,12 @@ class Config:
         PNPMethod = cv2.SOLVEPNP_ITERATIVE
 
     class ResultSending:
-        on = False
+        on = True
         HOST = "127.0.0.1"
         PORT = 9999
 
     class Debug:
-        on = True
+        on = False
         dynamic_fields = [
             ("smoothing_factor", numpy.float64),
             ("running_flag", numpy.int32),

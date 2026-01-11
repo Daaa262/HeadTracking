@@ -19,7 +19,7 @@ if __name__ == "__main__":
     shared_dynamic_data = numpy.ndarray(1, dtype=dynamic_data.dtype, buffer=shm_dynamic_data.buf)
     shared_dynamic_data[:] = dynamic_data
 
-    shm_frame = SharedMemory(create=True, size=config.screen.width * config.screen.height * 3)
+    shm_frame = SharedMemory(create=True, size=config.camera.width * config.camera.height * 3)
     shm_landmarks = SharedMemory(create=True, size=56)
     shm_viewpoint = SharedMemory(create=True, size=140)
 
