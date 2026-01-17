@@ -15,6 +15,9 @@ if __name__ == "__main__":
     dynamic_data = numpy.zeros(1, dtype=numpy.dtype(config.debug.dynamic_fields))
     dynamic_data["smoothing_factor"] = config.other.smoothingFactor
     dynamic_data["running_flag"] = 1
+    dynamic_data["test"] = False
+    dynamic_data["latency_ready"] = False
+    dynamic_data["latency"] = 0
     shm_dynamic_data = SharedMemory(create=True, size=dynamic_data.nbytes)
     shared_dynamic_data = numpy.ndarray(1, dtype=dynamic_data.dtype, buffer=shm_dynamic_data.buf)
     shared_dynamic_data[:] = dynamic_data

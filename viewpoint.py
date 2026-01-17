@@ -45,6 +45,9 @@ def run(config, shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, l
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+    first_measure = None
+    total_latency = 0
+    total_latency_count = 0
     try:
         frames = 0
         last_time = time.time()
@@ -90,6 +93,19 @@ def run(config, shm_dynamic_data_name, shm_landmarks_name, shm_viewpoint_name, l
 
                         data = json.dumps(data_dict).encode("utf-8")
                         sock.sendto(data, (config.resultSending.HOST, config.resultSending.PORT))
+                        if shared_dynamic_data['latency_ready'][0]:
+                            if first_measure is None:
+                                first_measure = time.perf_counter()
+
+                            now_latency = time.perf_counter()
+                            if now_latency - first_measure > 60:
+                                print("Total latency: ", total_latency / total_latency_count)
+                                shared_dynamic_data['latency_ready'][0] = False
+
+                            total_latency += now_latency - shared_dynamic_data['latency'][0]
+                            total_latency_count += 1
+
+                            shared_dynamic_data['latency_ready'][0] = False
 
     finally:
         shm_dynamic_data.close()

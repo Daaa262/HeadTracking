@@ -79,13 +79,16 @@ class Config:
         PORT = 9999
 
     class Debug:
-        on = False
+        on = True
         dynamic_fields = [
             ("smoothing_factor", numpy.float64),
             ("running_flag", numpy.int32),
             ("camera_fps", numpy.int32),
             ("face_mesh_fps", numpy.int32),
-            ("viewpoint_fps", numpy.int32)
+            ("viewpoint_fps", numpy.int32),
+            ("test", numpy.bool_),
+            ("latency_ready", numpy.float64),
+            ("latency", numpy.float64)
         ]
 
     class Other:

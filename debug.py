@@ -30,6 +30,8 @@ def key_down(key, x, y):
     elif key == b'q':
         shared_dynamic_data['running_flag'][0] = 0
         glutLeaveMainLoop()
+    elif key == b't':
+        shared_dynamic_data['test'][0] = True
 
     keys_down.add(key)
 

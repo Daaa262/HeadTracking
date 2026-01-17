@@ -72,12 +72,6 @@ def update_projection(view, projection):
     glMatrixMode(GL_MODELVIEW)
     glLoadMatrixf(view)
 
-def draw_text(x, y, text):
-    glMatrixMode(GL_MODELVIEW)
-    glRasterPos2f(x, y)
-    for ch in text:
-        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, ord(ch))
-
 def sphere_fully_blocks(blue_center, blue_radius, red_center, red_radius, viewpoint):
     vp = numpy.array([viewpoint['x'], viewpoint['y'], viewpoint['z']], dtype=float)
     b = numpy.array(blue_center, dtype=float)
@@ -160,7 +154,6 @@ def draw_shapes(viewpoint):
 current_viewpoint = {"x": 0, "y": 0, "z": 0}
 def display():
     global current_viewpoint
-
     glClearColor(0.0, 0.0, 0.0, 1.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 

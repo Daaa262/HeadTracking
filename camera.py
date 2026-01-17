@@ -42,6 +42,9 @@ def run(config, shm_dynamic_data_name, shm_frame_name, lock_frame):
             if not ret or frame is None:
                 time.sleep(0.1)
                 continue
+            if shared_dynamic_data['test'][0]:
+                shared_dynamic_data['latency'][0] = time.perf_counter()
+                shared_dynamic_data['latency_ready'][0] = True
 
             with lock_frame:
                 shared_frame[:] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
