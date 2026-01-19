@@ -14,7 +14,6 @@ MONITOR_SIZE = [get_monitors()[0].width_mm, get_monitors()[0].height_mm]
 GRID_X = 50
 GRID_Y = 30
 
-now = time.time()
 start = None
 
 HOST = "0.0.0.0"
@@ -184,7 +183,7 @@ def keyboard(key, x, y):
         else:
             amount *= 2
         generate_level(amount)
-        start = time.time()
+        start = time.perf_counter()
     elif key == b'q':
         glutLeaveMainLoop()
 

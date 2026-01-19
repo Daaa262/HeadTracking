@@ -9,7 +9,7 @@ from OpenGL.GLUT import *
 alpha = 0.0
 shared_viewpoint = None
 snapshot = None
-now = time.time()
+now = time.perf_counter()
 lock = None
 shared_dynamic_data = None
 asteroids_data = None
@@ -158,10 +158,10 @@ def draw_monitor_frame():
 def display():
     global alpha, now
 
-    update_camera_position(time.time() - now)
+    update_camera_position(time.perf_counter() - now)
 
-    alpha = alpha + (time.time() - now) * 100
-    now = time.time()
+    alpha = alpha + (time.perf_counter() - now) * 100
+    now = time.perf_counter()
 
     glClearColor(0.0, 0.0, 0.0, 1.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
