@@ -23,7 +23,7 @@ Testing scenarios
 4 - 1 cores
 5 - full CPU usage
 """
-scenario = 1
+scenario = 0
 
 if __name__ == "__main__":
     config = Config()
@@ -89,12 +89,16 @@ if __name__ == "__main__":
             psutil.Process(debug.pid).cpu_affinity([0])
         elif scenario == 5:
             burn = Process(target=burn_run)
+            burn.start()
 
         camera.join()
         face_mesh.join()
         viewpoint.join()
         if config.debug.on:
             debug.join()
+        if scenario == 5:
+            # noinspection PyUnboundLocalVariable
+            burn.join()
 
     finally:
         shm_dynamic_data.close()
