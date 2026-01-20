@@ -85,7 +85,8 @@ class Config:
             ("running_flag", numpy.int32),
             ("camera_fps", numpy.int32),
             ("face_mesh_fps", numpy.int32),
-            ("viewpoint_fps", numpy.int32)
+            ("viewpoint_fps", numpy.int32),
+            ("test", numpy.bool_)
         ]
 
     class Other:

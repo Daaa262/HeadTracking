@@ -18,8 +18,12 @@ config = None
 cam_pos = [0.0, 0.0, 0.0]
 keys_down = set()
 
+test_started = False
+total_frames = 0
+test_started_time = None
+
 def key_down(key, x, y):
-    global shared_dynamic_data, cam_pos
+    global shared_dynamic_data, cam_pos, test_started, total_frames, test_started_time
 
     if key == b'r':
         cam_pos = [0.0, 0.0, 0.0]
@@ -30,6 +34,11 @@ def key_down(key, x, y):
     elif key == b'q':
         shared_dynamic_data['running_flag'][0] = 0
         glutLeaveMainLoop()
+    elif key == b't' and not test_started:
+        total_frames = 0
+        test_started_time = time.perf_counter()
+        test_started = True
+        shared_dynamic_data['test'][0] = True
 
     keys_down.add(key)
 
@@ -156,7 +165,7 @@ def draw_monitor_frame():
     glLineWidth(1.0)
 
 def display():
-    global alpha, now
+    global alpha, now, test_started, total_frames, test_started_time
 
     update_camera_position(time.perf_counter() - now)
 
@@ -178,6 +187,13 @@ def display():
     draw_debug_text()
 
     glutSwapBuffers()
+
+    if test_started:
+        if time.perf_counter() - test_started_time > 60:
+            print("[Debug]: ", total_frames / 60, "fps")
+            test_started = False
+
+        total_frames += 1
 
 def init():
     glutInit()

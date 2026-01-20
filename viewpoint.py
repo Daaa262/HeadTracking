@@ -53,12 +53,21 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name
 
     live_viewpoint = None
 
+    test_started = False
+    total_frames = 0
+    test_started_time = None
+
     try:
         frames = 0
         last_time = time.perf_counter()
         last_processed = 0
         last_smooth = time.perf_counter()
         while shared_dynamic_data['running_flag'][0]:
+            if shared_dynamic_data['test'][0] and not test_started:
+                total_frames = 0
+                test_started_time = time.perf_counter()
+                test_started = True
+
             frames += 1
             now = time.perf_counter()
             if now - last_time >= 1:
@@ -104,6 +113,13 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name
 
                     data = json.dumps(data_dict).encode("utf-8")
                     sock.sendto(data, (config.resultSending.HOST, config.resultSending.PORT))
+
+            if test_started:
+                if time.perf_counter() - test_started_time > 60:
+                    print("[Viewpoint]: ", total_frames / 60, "fps")
+                    test_started = False
+
+                total_frames += 1
     finally:
         shm_dynamic_data.close()
         shm_landmarks.close()
