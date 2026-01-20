@@ -51,8 +51,8 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name
 
     shm_latency_ring = SharedMemory(name=shm_latency_ring_name)
     latency_ring = numpy.ndarray(
-        shape=(8,),
-        dtype=numpy.float64,
+        shape=(32,),
+        dtype=numpy.int64,
         buffer=shm_latency_ring.buf)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -97,13 +97,13 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name
             if shared_pipeline_ids[1] > last_processed:
                 if latency_test_started:
                     if time.perf_counter() - latency_test_started_time > 60:
-                        print("[Latency]: Min", min_latency, "ms")
-                        print("[Latency]: Avg", total_latency / total_processed_frames, "ms")
-                        print("[Latency]: Max", max_latency, "ms")
+                        print("[Latency]: Min", min_latency / 10 ** 6, "ms")
+                        print("[Latency]: Avg", total_latency / total_processed_frames / 10 ** 6, "ms")
+                        print("[Latency]: Max", max_latency / 10 ** 6, "ms")
                         latency_test_started = False
 
                     total_processed_frames += 1
-                    latency = (time.time() - latency_ring[(shared_pipeline_ids[1] - 1) % 8]) * 1000
+                    latency = (time.perf_counter_ns() - latency_ring[(shared_pipeline_ids[1] - 1) % 32])
                     total_latency += latency
 
                     if latency < min_latency:

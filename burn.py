@@ -7,7 +7,7 @@ def burn():
     while True:
         x += 1
 
-if __name__ == '__main__':
+def run():
     p = []
     for i in range(8):
         p.append(Process(target=burn))

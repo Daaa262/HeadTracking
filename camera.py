@@ -28,8 +28,8 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_frame_name, lo
 
     shm_latency_ring = SharedMemory(name=shm_latency_ring_name)
     latency_ring = numpy.ndarray(
-        shape=(8,),
-        dtype=numpy.float64,
+        shape=(32,),
+        dtype=numpy.int64,
         buffer=shm_latency_ring.buf)
 
     cap = cv2.VideoCapture(0)
@@ -61,12 +61,12 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_frame_name, lo
             ret, frame = cap.read()
 
             if not ret or frame is None:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 continue
 
             with lock_frame:
                 shared_frame[:] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                latency_ring[shared_pipeline_ids[0] % 8] = time.time()
+                latency_ring[shared_pipeline_ids[0] % 32] = time.perf_counter_ns()
                 shared_pipeline_ids[0] += 1
 
             if test_started:

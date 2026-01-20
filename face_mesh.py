@@ -54,6 +54,7 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_frame_name, sh
                 test_started = True
 
             if shared_pipeline_ids[0] == last_processed:
+                time.sleep(0.001)
                 continue
             else:
                 last_processed = shared_pipeline_ids[0]

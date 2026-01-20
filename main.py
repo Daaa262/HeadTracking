@@ -1,3 +1,5 @@
+import time
+
 from config import Config
 
 import numpy
@@ -8,6 +10,20 @@ from camera import run as camera_run
 from face_mesh import run as face_mesh_run
 from viewpoint import run as viewpoint_run
 from debug import run as debug_run
+
+import psutil
+from burn import run as burn_run
+
+"""
+Testing scenarios
+0 - default
+1 - 2 cores K1
+2 - 2 cores K2
+3 - 2 cores K3
+4 - 1 cores
+5 - full CPU usage
+"""
+scenario = 1
 
 if __name__ == "__main__":
     config = Config()
@@ -24,8 +40,8 @@ if __name__ == "__main__":
     pipeline_ids = numpy.ndarray(2, dtype=numpy.int64, buffer=shm_pipeline_ids.buf)
     pipeline_ids[:] = 0
 
-    shm_latency_ring = SharedMemory(create=True, size=numpy.float64().nbytes * 8)
-    latency_ring = numpy.ndarray(8, dtype=numpy.float64, buffer=shm_latency_ring.buf)
+    shm_latency_ring = SharedMemory(create=True, size=numpy.int64().nbytes * 32)
+    latency_ring = numpy.ndarray(32, dtype=numpy.int64, buffer=shm_latency_ring.buf)
 
     shm_frame = SharedMemory(create=True, size=config.camera.width * config.camera.height * 3)
     shm_landmarks = SharedMemory(create=True, size=56)
@@ -48,6 +64,31 @@ if __name__ == "__main__":
         if config.debug.on:
             # noinspection PyUnboundLocalVariable
             debug.start()
+
+        if scenario != 0:
+            time.sleep(5)
+        if scenario == 1:
+            psutil.Process(camera.pid).cpu_affinity([0])
+            psutil.Process(face_mesh.pid).cpu_affinity([0])
+            psutil.Process(viewpoint.pid).cpu_affinity([1])
+            psutil.Process(debug.pid).cpu_affinity([1])
+        elif scenario == 2:
+            psutil.Process(camera.pid).cpu_affinity([0])
+            psutil.Process(face_mesh.pid).cpu_affinity([1])
+            psutil.Process(viewpoint.pid).cpu_affinity([0])
+            psutil.Process(debug.pid).cpu_affinity([1])
+        elif scenario == 3:
+            psutil.Process(camera.pid).cpu_affinity([0])
+            psutil.Process(face_mesh.pid).cpu_affinity([1])
+            psutil.Process(viewpoint.pid).cpu_affinity([1])
+            psutil.Process(debug.pid).cpu_affinity([0])
+        elif scenario == 4:
+            psutil.Process(camera.pid).cpu_affinity([0])
+            psutil.Process(face_mesh.pid).cpu_affinity([0])
+            psutil.Process(viewpoint.pid).cpu_affinity([0])
+            psutil.Process(debug.pid).cpu_affinity([0])
+        elif scenario == 5:
+            burn = Process(target=burn_run)
 
         camera.join()
         face_mesh.join()
