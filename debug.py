@@ -179,6 +179,8 @@ def display():
 
     glutSwapBuffers()
 
+    time.sleep(0.001)
+
 def init():
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGB | GLUT_MULTISAMPLE)

@@ -46,7 +46,7 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_frame_name, lo
             ret, frame = cap.read()
 
             if not ret or frame is None:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 continue
 
             with lock_frame:
