@@ -6,7 +6,7 @@ from multiprocessing.shared_memory import SharedMemory
 
 os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
 
-def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_frame_name, lock_frame):
+def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_frame_name, lock_frame, shm_latency_ring_name):
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
     shared_dynamic_data = numpy.ndarray(
         shape=(1,),
@@ -25,6 +25,12 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_frame_name, lo
         dtype=numpy.uint8,
         buffer=shm_frame.buf
     )
+
+    shm_latency_ring = SharedMemory(name=shm_latency_ring_name)
+    latency_ring = numpy.ndarray(
+        shape=(8,),
+        dtype=numpy.float64,
+        buffer=shm_latency_ring.buf)
 
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.camera.width)
@@ -60,6 +66,7 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_frame_name, lo
 
             with lock_frame:
                 shared_frame[:] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                latency_ring[shared_pipeline_ids[0] % 8] = time.time()
                 shared_pipeline_ids[0] += 1
 
             if test_started:

@@ -35,6 +35,7 @@ def key_down(key, x, y):
         shared_dynamic_data['running_flag'][0] = 0
         glutLeaveMainLoop()
     elif key == b't' and not test_started:
+        print("Test started. 60 Seconds remaining")
         total_frames = 0
         test_started_time = time.perf_counter()
         test_started = True

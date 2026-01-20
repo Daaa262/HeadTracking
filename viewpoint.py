@@ -22,7 +22,7 @@ def make_projection(config, eye):
 
     return m
 
-def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name, shm_viewpoint_name, lock_landmarks, lock_viewpoint):
+def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name, shm_viewpoint_name, lock_landmarks, lock_viewpoint, shm_latency_ring_name):
     shm_dynamic_data = SharedMemory(name=shm_dynamic_data_name)
     shared_dynamic_data = numpy.ndarray(
         shape=(1,),
@@ -49,6 +49,12 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name
         buffer=shm_viewpoint.buf
     )
 
+    shm_latency_ring = SharedMemory(name=shm_latency_ring_name)
+    latency_ring = numpy.ndarray(
+        shape=(8,),
+        dtype=numpy.float64,
+        buffer=shm_latency_ring.buf)
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     live_viewpoint = None
@@ -57,16 +63,29 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name
     total_frames = 0
     test_started_time = None
 
+    latency_test_started = False
+    min_latency = None
+    total_latency = None
+    total_processed_frames = 0
+    max_latency = None
+    latency_test_started_time = None
+
     try:
         frames = 0
         last_time = time.perf_counter()
         last_processed = 0
         last_smooth = time.perf_counter()
         while shared_dynamic_data['running_flag'][0]:
-            if shared_dynamic_data['test'][0] and not test_started:
+            if shared_dynamic_data['test'][0] and not test_started and not latency_test_started:
                 total_frames = 0
                 test_started_time = time.perf_counter()
                 test_started = True
+
+                min_latency = 10.0 ** 10
+                total_latency = 0
+                max_latency = 0.0
+                latency_test_started_time = time.perf_counter()
+                latency_test_started = True
 
             frames += 1
             now = time.perf_counter()
@@ -76,6 +95,22 @@ def run(config, shm_dynamic_data_name, shm_pipeline_ids_name, shm_landmarks_name
                 last_time = now
 
             if shared_pipeline_ids[1] > last_processed:
+                if latency_test_started:
+                    if time.perf_counter() - latency_test_started_time > 60:
+                        print("[Latency]: Min", min_latency, "ms")
+                        print("[Latency]: Avg", total_latency / total_processed_frames, "ms")
+                        print("[Latency]: Max", max_latency, "ms")
+                        latency_test_started = False
+
+                    total_processed_frames += 1
+                    latency = (time.time() - latency_ring[(shared_pipeline_ids[1] - 1) % 8]) * 1000
+                    total_latency += latency
+
+                    if latency < min_latency:
+                        min_latency = latency
+                    if latency > max_latency:
+                        max_latency = latency
+
                 last_processed = shared_pipeline_ids[1]
                 with lock_landmarks:
                     success, _, translation_vector = cv2.solvePnP(config.face.model_mm, shared_landmarks[:], config.camera.matrix, config.camera.dist_coefficients, flags=config.face.PNPMethod)

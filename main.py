@@ -24,6 +24,9 @@ if __name__ == "__main__":
     pipeline_ids = numpy.ndarray(2, dtype=numpy.int64, buffer=shm_pipeline_ids.buf)
     pipeline_ids[:] = 0
 
+    shm_latency_ring = SharedMemory(create=True, size=numpy.float64().nbytes * 8)
+    latency_ring = numpy.ndarray(8, dtype=numpy.float64, buffer=shm_latency_ring.buf)
+
     shm_frame = SharedMemory(create=True, size=config.camera.width * config.camera.height * 3)
     shm_landmarks = SharedMemory(create=True, size=56)
     shm_viewpoint = SharedMemory(create=True, size=140)
@@ -32,9 +35,9 @@ if __name__ == "__main__":
     lock_landmarks = Lock()
     lock_viewpoint = Lock()
 
-    camera = Process(target = camera_run, args=(config, shm_dynamic_data.name, shm_pipeline_ids.name, shm_frame.name, lock_frame))
+    camera = Process(target = camera_run, args=(config, shm_dynamic_data.name, shm_pipeline_ids.name, shm_frame.name, lock_frame, shm_latency_ring.name))
     face_mesh = Process(target=face_mesh_run, args=(config, shm_dynamic_data.name, shm_pipeline_ids.name, shm_frame.name, shm_landmarks.name, lock_frame, lock_landmarks))
-    viewpoint = Process(target=viewpoint_run, args=(config, shm_dynamic_data.name, shm_pipeline_ids.name, shm_landmarks.name, shm_viewpoint.name, lock_landmarks, lock_viewpoint))
+    viewpoint = Process(target=viewpoint_run, args=(config, shm_dynamic_data.name, shm_pipeline_ids.name, shm_landmarks.name, shm_viewpoint.name, lock_landmarks, lock_viewpoint, shm_latency_ring.name))
     if config.debug.on:
         debug = Process(target=debug_run, args=(config, shm_dynamic_data.name, shm_viewpoint.name, lock_viewpoint))
 
