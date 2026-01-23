@@ -79,7 +79,7 @@ class Config:
         PORT = 9999
 
     class Debug:
-        on = True
+        on = False
         dynamic_fields = [
             ("smoothing_factor", numpy.float64),
             ("running_flag", numpy.int32),
@@ -89,7 +89,7 @@ class Config:
         ]
 
     class Other:
-        smoothingFactor = 1.0
+        smoothingFactor = 4.0
         nearPlane = 1.0
         farPlane = 5000.0
 
